@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { ReminderOutbox } from "@/components/reminder-outbox";
 import { RolloverCard } from "@/components/rollover-card";
+import { VolunteerDashboard } from "@/components/volunteer-dashboard";
 import {
   Card,
   CardContent,
@@ -40,6 +41,7 @@ export default function AdminPage() {
           </p>
         </CardContent>
       </Card>
+      <VolunteerDashboard />
       <RolloverCard />
       <ReminderOutbox />
     </div>
