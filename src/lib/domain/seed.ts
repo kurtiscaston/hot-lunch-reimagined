@@ -228,7 +228,7 @@ function expectedCents(
     roster.filter((pupil) => pupil.householdId === householdId).map((pupil) => pupil.id),
   );
   return orders
-    .filter((order) => studentIds.has(order.studentId))
+    .filter((order) => !order.archived && studentIds.has(order.studentId))
     .reduce((sum, order) => sum + order.priceCents, 0);
 }
 

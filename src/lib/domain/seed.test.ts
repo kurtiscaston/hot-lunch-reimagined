@@ -23,13 +23,13 @@ function expectedCents(snapshot: LunchSnapshot, householdId: string): number {
       .map((pupil) => pupil.id),
   );
   return snapshot.orders
-    .filter((order) => studentIds.has(order.studentId))
+    .filter((order) => !order.archived && studentIds.has(order.studentId))
     .reduce((sum, order) => sum + order.priceCents, 0);
 }
 
 function receivedCents(snapshot: LunchSnapshot, householdId: string): number {
   return snapshot.payments
-    .filter((payment) => payment.householdId === householdId)
+    .filter((payment) => !payment.archived && payment.householdId === householdId)
     .reduce((sum, payment) => sum + payment.amountCents, 0);
 }
 
