@@ -2,8 +2,7 @@ import { placeOrder, type PlaceOrderInput, type PlaceOrderResult } from "@/lib/d
 import type { Order } from "@/lib/domain/types";
 
 import {
-  DEMO_STORAGE_KEY,
-  loadDemoState,
+  readValidDemoState,
   saveDemoState,
   type DemoState,
   type KeyValueStorage,
@@ -13,35 +12,16 @@ export type CommitPlaceOrderResult =
   | { ok: true; state: DemoState; order: Order }
   | { ok: false; reason: Extract<PlaceOrderResult, { ok: false }>["reason"] };
 
-/** Validated storage wins over a stale in-memory copy. A blocked read keeps the fallback. */
+/**
+ * Use storage only when it is today's valid demo. A missing, stale, or
+ * invalid record keeps `fallback`, so an order is not placed on a new seed.
+ */
 function readLatestDemoState(
   storage: KeyValueStorage,
   fallback: DemoState,
   now: Date,
 ): DemoState {
-  let raw: string | null;
-  try {
-    raw = storage.getItem(DEMO_STORAGE_KEY);
-  } catch {
-    return fallback;
-  }
-  if (raw === null) {
-    return fallback;
-  }
-  return loadDemoState(
-    {
-      getItem() {
-        return raw;
-      },
-      setItem() {
-        // Validation only reads.
-      },
-      removeItem() {
-        // Validation only reads.
-      },
-    },
-    now,
-  );
+  return readValidDemoState(storage, now) ?? fallback;
 }
 
 /**

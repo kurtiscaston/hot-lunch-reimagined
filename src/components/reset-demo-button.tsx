@@ -10,7 +10,18 @@ export function ResetDemoButton() {
     <Button
       className="min-h-11"
       disabled={!demo}
-      onClick={() => demo?.reset()}
+      onClick={() => {
+        if (!demo) {
+          return;
+        }
+        const confirmed = window.confirm(
+          "Reset demo data? This clears the orders saved in this browser.",
+        );
+        if (!confirmed) {
+          return;
+        }
+        demo.reset();
+      }}
       size="lg"
       type="button"
       variant="outline"

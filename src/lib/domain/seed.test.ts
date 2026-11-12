@@ -16,7 +16,6 @@ function byId<T extends { id: string }>(records: T[], id: string): T {
   return found;
 }
 
-
 function expectedCents(snapshot: LunchSnapshot, householdId: string): number {
   const studentIds = new Set(
     snapshot.students

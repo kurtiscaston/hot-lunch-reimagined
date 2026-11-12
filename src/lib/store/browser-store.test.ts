@@ -158,6 +158,27 @@ describe("browser demo store", () => {
     expect(refreshed.snapshot.rolloverApplied).toBe(false);
   });
 
+  it("discards a snapshot whose payments or reminders are not records", () => {
+    const storage = memoryStorage();
+    const loaded = loadDemoState(storage, NOW);
+    saveDemoState(storage, loaded);
+    const saved = storage.getItem(DEMO_STORAGE_KEY);
+    if (!saved) {
+      throw new Error("expected a stored demo");
+    }
+    const record = JSON.parse(saved) as { snapshot: { payments: unknown; reminders: unknown } };
+
+    record.snapshot.payments = [{ id: "pay-bad" }];
+    storage.setItem(DEMO_STORAGE_KEY, JSON.stringify(record));
+    expect(loadDemoState(storage, NOW).snapshot).toEqual(createSeed(NOW));
+
+    saveDemoState(storage, loaded);
+    record.snapshot.payments = loaded.snapshot.payments;
+    record.snapshot.reminders = [{ id: "rem-bad", status: "sent" }];
+    storage.setItem(DEMO_STORAGE_KEY, JSON.stringify(record));
+    expect(loadDemoState(storage, NOW).snapshot).toEqual(createSeed(NOW));
+  });
+
   it("clears back to a fresh seed", () => {
     const storage = memoryStorage();
     const loaded = loadDemoState(storage, NOW);

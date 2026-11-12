@@ -1,5 +1,5 @@
 import { createSeed } from "@/lib/domain/seed";
-import { GRADES, type LunchSnapshot } from "@/lib/domain/types";
+import { CHANNELS, GRADES, type LunchSnapshot } from "@/lib/domain/types";
 import { isCalendarDate, isIsoInstant, zonedDate } from "@/lib/domain/time-zone";
 import { SCHOOL_NAME } from "@/lib/site";
 
@@ -97,6 +97,42 @@ function isMenuItem(value: unknown): boolean {
   );
 }
 
+const PAYMENT_METHODS = ["cash", "check", "mock-transfer"] as const;
+
+function isPayment(value: unknown): boolean {
+  if (!isRecord(value) || !isString(value.method)) {
+    return false;
+  }
+  return (
+    isString(value.id) &&
+    value.id.length > 0 &&
+    isString(value.householdId) &&
+    typeof value.amountCents === "number" &&
+    Number.isFinite(value.amountCents) &&
+    isString(value.receivedAt) &&
+    isIsoInstant(value.receivedAt) &&
+    (PAYMENT_METHODS as readonly string[]).includes(value.method) &&
+    isString(value.reference)
+  );
+}
+
+function isReminder(value: unknown): boolean {
+  if (!isRecord(value) || !isString(value.channel)) {
+    return false;
+  }
+  return (
+    isString(value.id) &&
+    value.id.length > 0 &&
+    isString(value.householdId) &&
+    isString(value.menuDayId) &&
+    (CHANNELS as readonly string[]).includes(value.channel) &&
+    isString(value.createdAt) &&
+    isIsoInstant(value.createdAt) &&
+    isString(value.body) &&
+    value.status === "mock-sent"
+  );
+}
+
 function isOrder(value: unknown): boolean {
   return (
     isRecord(value) &&
@@ -159,7 +195,9 @@ function isSnapshot(value: unknown): value is LunchSnapshot {
     Array.isArray(value.orders) &&
     value.orders.every(isOrder) &&
     Array.isArray(value.payments) &&
-    Array.isArray(value.reminders)
+    value.payments.every(isPayment) &&
+    Array.isArray(value.reminders) &&
+    value.reminders.every(isReminder)
   );
 }
 
@@ -174,6 +212,53 @@ function reseedKeepingHousehold(now: Date, requested: unknown): DemoState {
   const fresh = freshState(now);
   const householdId = matchingHouseholdId(fresh.snapshot, String(requested ?? ""));
   return householdId ? { ...fresh, householdId } : fresh;
+}
+
+type ParsedDemo =
+  | { status: "valid"; state: DemoState }
+  | { status: "invalid"; householdId: unknown }
+  | { status: "unreadable" };
+
+function parseStoredDemo(raw: string, now: Date): ParsedDemo {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { status: "unreadable" };
+  }
+  if (!isRecord(parsed)) {
+    return { status: "unreadable" };
+  }
+  const record = parsed as Partial<StoredDemo>;
+  const today = zonedDate(now);
+  if (record.schemaVersion !== 1 || !isSnapshot(record.snapshot) || record.seededOn !== today) {
+    return { status: "invalid", householdId: record.householdId };
+  }
+  const householdId =
+    matchingHouseholdId(record.snapshot, String(record.householdId ?? "")) ??
+    initialHouseholdId(record.snapshot, now);
+  return {
+    status: "valid",
+    state: { snapshot: record.snapshot, householdId, seededOn: today },
+  };
+}
+
+/**
+ * Today's stored demo. Missing, stale, and invalid records return null
+ * instead of building a new seed.
+ */
+export function readValidDemoState(storage: KeyValueStorage, now: Date): DemoState | null {
+  let raw: string | null;
+  try {
+    raw = storage.getItem(DEMO_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+  if (!raw) {
+    return null;
+  }
+  const parsed = parseStoredDemo(raw, now);
+  return parsed.status === "valid" ? parsed.state : null;
 }
 
 /** Keep today's cached demo. Reseed once the America/Vancouver date has changed. */
@@ -198,23 +283,14 @@ export function loadDemoState(storage: KeyValueStorage, now: Date): DemoState {
   if (!raw) {
     return freshState(now);
   }
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!isRecord(parsed)) {
-      return freshState(now);
-    }
-    const record = parsed as Partial<StoredDemo>;
-    const today = zonedDate(now);
-    if (record.schemaVersion !== 1 || !isSnapshot(record.snapshot) || record.seededOn !== today) {
-      return reseedKeepingHousehold(now, record.householdId);
-    }
-    const householdId =
-      matchingHouseholdId(record.snapshot, String(record.householdId ?? "")) ??
-      initialHouseholdId(record.snapshot, now);
-    return { snapshot: record.snapshot, householdId, seededOn: today };
-  } catch {
+  const parsed = parseStoredDemo(raw, now);
+  if (parsed.status === "unreadable") {
     return freshState(now);
   }
+  if (parsed.status === "invalid") {
+    return reseedKeepingHousehold(now, parsed.householdId);
+  }
+  return parsed.state;
 }
 
 export function saveDemoState(storage: KeyValueStorage, state: DemoState): void {

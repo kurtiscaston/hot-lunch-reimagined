@@ -67,4 +67,29 @@ describe("commitPlaceOrder", () => {
     expect(ids).toContain(`${OTHER.studentId}:${OTHER.menuDayId}`);
     expect(ids).toContain(`${OURS.studentId}:${OURS.menuDayId}`);
   });
+
+  it("places the order on the fallback when storage is from another Vancouver day", () => {
+    const storage = memoryStorage();
+    const fallback = loadDemoState(storage, NOW);
+    const earlier = new Date("2026-11-10T15:00:00.000Z");
+    const stale = loadDemoState(memoryStorage(), earlier);
+    saveDemoState(storage, stale);
+
+    const committed = commitPlaceOrder(storage, fallback, OURS, NOW);
+    expect(committed.ok).toBe(true);
+    if (!committed.ok) {
+      return;
+    }
+    expect(committed.state.snapshot.menuDays.map((day) => day.cutoffAt)).toEqual(
+      fallback.snapshot.menuDays.map((day) => day.cutoffAt),
+    );
+    expect(
+      committed.state.snapshot.orders.some(
+        (order) => order.studentId === OURS.studentId && order.menuDayId === OURS.menuDayId,
+      ),
+    ).toBe(true);
+    expect(committed.state.snapshot.menuDays.map((day) => day.cutoffAt)).not.toEqual(
+      stale.snapshot.menuDays.map((day) => day.cutoffAt),
+    );
+  });
 });

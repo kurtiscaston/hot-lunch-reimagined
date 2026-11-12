@@ -112,7 +112,9 @@ export function OrderingBoard() {
     <div className="flex flex-col gap-6">
       <Card>
         <CardHeader>
-          <CardTitle>{household.name}</CardTitle>
+          <CardTitle>
+            <h2 className="text-base font-medium">{household.name}</h2>
+          </CardTitle>
           <CardDescription>Demo household. Not a sign-in.</CardDescription>
         </CardHeader>
         <CardContent>
