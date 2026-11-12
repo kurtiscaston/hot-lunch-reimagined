@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useDemo } from "@/components/demo-provider";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,17 @@ import { describeChange, previewRollover } from "@/lib/domain/rollover";
 
 export function RolloverCard() {
   const demo = useDemo();
+  const resultRef = useRef<HTMLParagraphElement>(null);
   const [open, setOpen] = useState(false);
+  const [applied, setApplied] = useState(false);
+  const rolled = demo?.state.snapshot.rolloverApplied === true;
+
+  useEffect(() => {
+    if (applied && rolled) {
+      resultRef.current?.focus();
+    }
+  }, [applied, rolled]);
+
   if (!demo) {
     return <p role="status">Loading demo data…</p>;
   }
@@ -32,7 +42,7 @@ export function RolloverCard() {
           </CardTitle>
           <CardDescription>
             Households stay. Students move up a grade. Grade 5 is archived, and this year&apos;s
-            orders and reminders stay on file.
+            orders, reminders, and payments stay on file. The demo reseeds daily.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -45,20 +55,32 @@ export function RolloverCard() {
               <Button
                 className="min-h-11"
                 disabled={!ready}
-                onClick={() => demo.applyRollover()}
+                onClick={() => {
+                  demo.applyRollover();
+                  setApplied(true);
+                }}
                 type="button"
                 variant="outline"
               >
                 Apply rollover
               </Button>
             </div>
-            {preview?.alreadyApplied ? <p>{preview.fromYear} is the current school year.</p> : null}
+            {rolled ? (
+              <p
+                className="rounded-md focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                ref={resultRef}
+                role={applied ? "status" : undefined}
+                tabIndex={-1}
+              >
+                {demo.state.snapshot.schoolYearLabel} is the current school year.
+              </p>
+            ) : null}
             {preview && !preview.alreadyApplied && preview.toYear === null ? (
               <p>This school year label cannot roll forward.</p>
             ) : null}
             {ready && preview ? (
               <div className="flex flex-col gap-3">
-                <p>
+                <p role="status">
                   Preview only. Applying moves {preview.fromYear} to {preview.toYear}.
                 </p>
                 <p>

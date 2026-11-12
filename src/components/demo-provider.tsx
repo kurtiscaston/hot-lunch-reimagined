@@ -199,7 +199,11 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       },
       placeOrder(input: PlaceOrderInput) {
         const now = new Date(readClock());
-        const outcome = commitPlaceOrder(browserStorage(), readClient(), input, now, {
+        const current = writableDemo(now);
+        if (!current) {
+          return { ok: false, reason: "locked" };
+        }
+        const outcome = commitPlaceOrder(browserStorage(), current, input, now, {
           lastWriteFailed: !lastWriteOk,
         });
         if (!outcome.ok) {

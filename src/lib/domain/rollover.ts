@@ -143,12 +143,18 @@ export function applyRollover(snapshot: LunchSnapshot, now: Date): LunchSnapshot
     ],
     orders: snapshot.orders.map((order) => ({
       ...order,
+      id: priorId(order.id),
       archived: true,
       menuDayId: priorId(order.menuDayId),
     })),
-    payments: snapshot.payments,
+    payments: snapshot.payments.map((payment) => ({
+      ...payment,
+      id: priorId(payment.id),
+      archived: true,
+    })),
     reminders: snapshot.reminders.map((reminder) => ({
       ...reminder,
+      id: priorId(reminder.id),
       archived: true,
       menuDayId: priorId(reminder.menuDayId),
     })),

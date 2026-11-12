@@ -285,11 +285,7 @@ function MenuDayCard({
                     day={day}
                     items={items}
                     key={pupil.id}
-                    missedDescriptionId={
-                      showMissed && missedStudents.some((missed) => missed.id === pupil.id)
-                        ? `${day.id}-missed`
-                        : undefined
-                    }
+                    missed={showMissed && missedStudents.some((missed) => missed.id === pupil.id)}
                     now={now}
                     onMissedFocus={onMissedFocus}
                     onPlace={onPlace}
@@ -319,7 +315,7 @@ function StudentOrder({
   now,
   onPlace,
   onMissedFocus,
-  missedDescriptionId,
+  missed,
 }: {
   student: Student;
   day: MenuDay;
@@ -328,7 +324,7 @@ function StudentOrder({
   now: Date;
   onPlace: (input: PlaceOrderInput) => PlaceOrderResult;
   onMissedFocus: () => void;
-  missedDescriptionId?: string;
+  missed: boolean;
 }) {
   const firstItem = items[0];
   const [itemId, setItemId] = useState(firstItem?.id ?? "");
@@ -377,7 +373,6 @@ function StudentOrder({
 
   return (
     <section
-      aria-describedby={missedDescriptionId}
       aria-labelledby={studentHeadingId}
       className="flex flex-col gap-3 border-t border-border pt-4"
     >
@@ -394,7 +389,7 @@ function StudentOrder({
           Ordered: {orderedItem?.name ?? "Meal"} · {formatPrice(order.priceCents)}
         </p>
       ) : null}
-      {missedDescriptionId && !showForm ? (
+      {missed && !showForm ? (
         <p className="text-sm text-muted-foreground">No order.</p>
       ) : null}
       {showForm ? (

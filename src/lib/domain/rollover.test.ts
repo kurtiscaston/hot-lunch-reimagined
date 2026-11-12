@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { placeOrder } from "@/lib/domain/place-order";
-import { dueReminders } from "@/lib/domain/reminders";
+import { dueReminders, queueDueReminders } from "@/lib/domain/reminders";
 import { applyRollover, describeChange, previewRollover } from "@/lib/domain/rollover";
 import { createSeed, MENU_DAY_IDS } from "@/lib/domain/seed";
 import { zonedDate } from "@/lib/domain/time-zone";
@@ -47,7 +47,7 @@ describe("school-year rollover", () => {
   });
 
   it("advances grades, archives the graduating class, and keeps a new menu orderable", () => {
-    const snapshot = createSeed(NOW);
+    const snapshot = queueDueReminders(createSeed(NOW), NOW);
     const rolled = applyRollover(snapshot, NOW);
 
     expect(rolled.schoolYearLabel).toBe("2027–2028");
@@ -68,11 +68,20 @@ describe("school-year rollover", () => {
       archived: true,
     });
     expect(rolled.students.find((pupil) => pupil.id === "stu-willa-dunlow")?.archived).toBe(true);
-    expect(rolled.orders.every((order) => order.archived && order.menuDayId.startsWith("prior-"))).toBe(
+    expect(
+      rolled.orders.every(
+        (order) => order.archived && order.id.startsWith("prior-") && order.menuDayId.startsWith("prior-"),
+      ),
+    ).toBe(true);
+    expect(rolled.reminders.every((reminder) => reminder.archived && reminder.id.startsWith("prior-"))).toBe(
       true,
     );
-    expect(rolled.reminders.every((reminder) => reminder.archived)).toBe(true);
-    expect(rolled.payments).toBe(snapshot.payments);
+    expect(
+      rolled.payments.every((payment) => payment.archived && payment.id.startsWith("prior-")),
+    ).toBe(true);
+    expect(rolled.payments.map((payment) => payment.amountCents)).toEqual(
+      snapshot.payments.map((payment) => payment.amountCents),
+    );
     expect(rolled.menuDays.some((day) => day.id === MENU_DAY_IDS.open && !day.archived)).toBe(true);
     expect(rolled.menuDays.some((day) => day.id === `prior-${MENU_DAY_IDS.open}` && day.archived)).toBe(
       true,
@@ -85,16 +94,27 @@ describe("school-year rollover", () => {
     const placed = placeOrder(
       rolled,
       {
-        studentId: "stu-ada-brindle",
+        studentId: "stu-theo-brindle",
         menuDayId: MENU_DAY_IDS.open,
         itemId: "item-lantern-citrus",
       },
       NOW,
     );
     expect(placed.ok).toBe(true);
+    if (placed.ok) {
+      const ids = placed.snapshot.orders.map((order) => order.id);
+      expect(new Set(ids).size).toBe(ids.length);
+      expect(placed.order.id).toBe(`ord-stu-theo-brindle-${MENU_DAY_IDS.open}`);
+      expect(ids).toContain(`prior-${placed.order.id}`);
+    }
     expect(dueReminders(rolled, NOW).some((reminder) => reminder.householdId === "hh-brindle")).toBe(
       true,
     );
+    const reminded = queueDueReminders(placed.ok ? placed.snapshot : rolled, NOW);
+    const reminderIds = reminded.reminders.map((reminder) => reminder.id);
+    expect(new Set(reminderIds).size).toBe(reminderIds.length);
+    expect(reminderIds.some((id) => id.startsWith("prior-rem-"))).toBe(true);
+    expect(reminderIds.some((id) => id.startsWith("rem-") && !id.startsWith("prior-"))).toBe(true);
   });
 
   it("round-trips an archived year through demo storage", () => {
@@ -112,7 +132,10 @@ describe("school-year rollover", () => {
     expect(loaded.snapshot.students.find((pupil) => pupil.id === "stu-moss-hearthwell")?.archived).toBe(
       true,
     );
-    expect(loaded.snapshot.orders.every((order) => order.archived === true)).toBe(true);
+    expect(loaded.snapshot.orders.every((order) => order.archived === true && order.id.startsWith("prior-"))).toBe(
+      true,
+    );
+    expect(loaded.snapshot.payments.every((payment) => payment.archived === true)).toBe(true);
     expect(loaded.snapshot.menuDays.some((day) => day.archived === true)).toBe(true);
   });
 });

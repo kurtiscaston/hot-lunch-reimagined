@@ -117,7 +117,8 @@ function isPayment(value: unknown): boolean {
     isString(value.receivedAt) &&
     isIsoInstant(value.receivedAt) &&
     (PAYMENT_METHODS as readonly string[]).includes(value.method) &&
-    isString(value.reference)
+    isString(value.reference) &&
+    optionalFlag(value, "archived")
   );
 }
 

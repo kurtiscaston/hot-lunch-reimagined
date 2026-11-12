@@ -76,6 +76,8 @@ export interface Payment {
   receivedAt: string;
   method: PaymentMethod;
   reference: string;
+  /** Kept after a school-year rollover. It is not a credit in the new year. */
+  archived?: boolean;
 }
 
 export interface Reminder {
