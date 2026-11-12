@@ -22,7 +22,7 @@ export interface CommitPlaceOrderOptions {
  * invalid record keeps `fallback`, so an order is not placed on a new seed.
  * A failed previous write also keeps `fallback`, because storage would drop it.
  */
-function readLatestDemoState(
+export function readLatestDemoState(
   storage: KeyValueStorage,
   fallback: DemoState,
   now: Date,

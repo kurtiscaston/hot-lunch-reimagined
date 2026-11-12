@@ -25,7 +25,12 @@ export function dueReminders(snapshot: LunchSnapshot, now: Date): Reminder[] {
 
   for (const day of snapshot.menuDays) {
     const cutoff = Date.parse(day.cutoffAt);
-    if (Number.isNaN(cutoff) || cutoff <= nowMs || cutoff - nowMs > REMINDER_LEAD_MS) {
+    if (
+      day.itemIds.length === 0 ||
+      Number.isNaN(cutoff) ||
+      cutoff <= nowMs ||
+      cutoff - nowMs > REMINDER_LEAD_MS
+    ) {
       continue;
     }
     for (const household of snapshot.households) {

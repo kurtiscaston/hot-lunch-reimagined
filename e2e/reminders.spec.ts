@@ -27,7 +27,7 @@ test("mock reminders land in the volunteer outbox", async ({ page }) => {
   await expect(outbox.getByText("Brindle · Text", { exact: true })).toHaveCount(0);
   await expect(outbox.getByText("Estervale · Email", { exact: true })).toBeVisible();
   await expect(outbox.getByText("Estervale · Text", { exact: true })).toBeVisible();
-  await expect(outbox.getByText("Dunlow", { exact: true })).toHaveCount(0);
+  await expect(outbox.getByText(/^Dunlow ·/)).toHaveCount(0);
 
   await page.goto("/");
   await page.getByLabel("Household", { exact: true }).selectOption({ label: "Brindle" });

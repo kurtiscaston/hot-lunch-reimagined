@@ -17,6 +17,7 @@ import {
   type KeyValueStorage,
 } from "@/lib/store/browser-store";
 import { commitPlaceOrder } from "@/lib/store/commit-order";
+import { commitStoredUpdate } from "@/lib/store/commit-stored";
 
 type DemoApi = {
   state: DemoState;
@@ -45,17 +46,32 @@ const memoryStorage: KeyValueStorage = {
   },
 };
 
-function queueCachedReminders(now: Date): boolean {
-  if (!cached || cached.seededOn !== zonedDate(now)) {
+function storeUpdate(now: Date, change: (state: DemoState) => DemoState): boolean {
+  if (!cached) {
     return false;
   }
-  const snapshot = queueDueReminders(cached.snapshot, now);
-  if (snapshot === cached.snapshot) {
+  const before = JSON.stringify(cached);
+  const outcome = commitStoredUpdate(browserStorage(), cached, now, change, {
+    lastWriteFailed: !lastWriteOk,
+  });
+  if (outcome.saved !== null) {
+    lastWriteOk = outcome.saved;
+  }
+  if (JSON.stringify(outcome.state) === before) {
     return false;
   }
-  cached = { ...cached, snapshot };
-  lastWriteOk = saveDemoState(browserStorage(), cached);
+  cached = outcome.state;
   return true;
+}
+
+function queueCachedReminders(now: Date): boolean {
+  return storeUpdate(now, (state) => {
+    if (state.seededOn !== zonedDate(now)) {
+      return state;
+    }
+    const snapshot = queueDueReminders(state.snapshot, now);
+    return snapshot === state.snapshot ? state : { ...state, snapshot };
+  });
 }
 
 function subscribe(listener: () => void) {
@@ -131,17 +147,33 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     return {
       state,
       setHouseholdId(householdId: string) {
-        const current = readClient();
-        if (!current.snapshot.households.some((household) => household.id === householdId)) {
-          return;
+        const changed = storeUpdate(new Date(readClock()), (state) => {
+          if (!state.snapshot.households.some((household) => household.id === householdId)) {
+            return state;
+          }
+          if (state.householdId === householdId) {
+            return state;
+          }
+          return { ...state, householdId };
+        });
+        if (changed) {
+          notify();
         }
-        publish({ ...current, householdId });
       },
       setReminderChannel(channel: Channel, enabled: boolean) {
-        const current = readClient();
-        const opted = setReminderOptIn(current.snapshot, current.householdId, channel, enabled);
-        const snapshot = queueDueReminders(opted, new Date());
-        publish({ ...current, snapshot });
+        const householdId = readClient().householdId;
+        const now = new Date(readClock());
+        const changed = storeUpdate(now, (state) => {
+          const opted = setReminderOptIn(state.snapshot, householdId, channel, enabled);
+          const snapshot = queueDueReminders(opted, now);
+          if (opted === state.snapshot && snapshot === state.snapshot) {
+            return state;
+          }
+          return { ...state, snapshot };
+        });
+        if (changed) {
+          notify();
+        }
       },
       placeOrder(input: PlaceOrderInput) {
         const outcome = commitPlaceOrder(browserStorage(), readClient(), input, new Date(), {

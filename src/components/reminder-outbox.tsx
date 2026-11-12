@@ -9,8 +9,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { formatCutoff, formatServiceDate } from "@/lib/domain/time-zone";
+import type { Channel } from "@/lib/domain/types";
 
-function channelLabel(channel: "email" | "sms"): string {
+function channelLabel(channel: Channel): string {
   return channel === "email" ? "Email" : "Text";
 }
 

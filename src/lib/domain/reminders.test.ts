@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { createSeed, MENU_DAY_IDS } from "@/lib/domain/seed";
 import { dueReminders, queueDueReminders, setReminderOptIn } from "@/lib/domain/reminders";
+import { createSeed, MENU_DAY_IDS } from "@/lib/domain/seed";
 
 const NOW = new Date("2026-11-12T15:00:00.000Z");
 
@@ -21,6 +21,17 @@ describe("mock reminders", () => {
     expect(due.some((reminder) => reminder.householdId === "hh-dunlow")).toBe(false);
     expect(due.some((reminder) => reminder.menuDayId === MENU_DAY_IDS.locked)).toBe(false);
     expect(due.some((reminder) => reminder.menuDayId === MENU_DAY_IDS.open)).toBe(false);
+  });
+
+  it("skips a day that has no meals", () => {
+    const snapshot = createSeed(NOW);
+    const emptied = {
+      ...snapshot,
+      menuDays: snapshot.menuDays.map((day) =>
+        day.id === MENU_DAY_IDS.imminent ? { ...day, itemIds: [] } : day,
+      ),
+    };
+    expect(dueReminders(emptied, NOW)).toEqual([]);
   });
 
   it("does not queue the same reminder twice", () => {

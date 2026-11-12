@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { useDemo } from "@/components/demo-provider";
 import { Button } from "@/components/ui/button";
@@ -224,12 +231,14 @@ function MenuDayCard({
   const dayHasOrder = students.some((pupil) =>
     orders.some((order) => order.studentId === pupil.id && order.menuDayId === day.id),
   );
-  const showMissed =
-    status === "locked" &&
-    students.some(
-      (pupil) =>
-        !orders.some((order) => order.studentId === pupil.id && order.menuDayId === day.id),
-    );
+  const missedStudents = students.filter(
+    (pupil) =>
+      !orders.some((order) => order.studentId === pupil.id && order.menuDayId === day.id),
+  );
+  const showMissed = status === "locked" && missedStudents.length > 0;
+  const missedNames = missedStudents
+    .map((pupil) => `${pupil.firstName} ${pupil.lastName}`)
+    .join(", ");
 
   return (
     <article aria-labelledby={headingId} className="flex flex-col" id={day.id}>
@@ -263,7 +272,7 @@ function MenuDayCard({
                     ref={missedLine}
                     tabIndex={-1}
                   >
-                    Missed the cutoff.
+                    {missedNames} missed the cutoff.
                   </p>
                 ) : null}
                 {students.map((pupil) => (
