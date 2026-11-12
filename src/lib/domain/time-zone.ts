@@ -83,10 +83,25 @@ export function formatServiceDate(serviceDate: string): string {
   const year = Number(match[1]);
   const month = Number(match[2]);
   const day = Number(match[3]);
-  if (!year || !month || !day) {
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day) ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
+  ) {
     throw new Error(`Invalid service date: ${serviceDate}`);
   }
   const noonUtc = new Date(Date.UTC(year, month - 1, day, 12));
+  if (
+    noonUtc.getUTCFullYear() !== year ||
+    noonUtc.getUTCMonth() !== month - 1 ||
+    noonUtc.getUTCDate() !== day
+  ) {
+    throw new Error(`Invalid service date: ${serviceDate}`);
+  }
   return new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     month: "long",

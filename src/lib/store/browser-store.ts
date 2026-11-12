@@ -1,5 +1,5 @@
 import { createSeed } from "@/lib/domain/seed";
-import type { LunchSnapshot } from "@/lib/domain/types";
+import { GRADES, type LunchSnapshot } from "@/lib/domain/types";
 import { zonedDate } from "@/lib/domain/time-zone";
 import { SCHOOL_NAME } from "@/lib/site";
 
@@ -8,6 +8,8 @@ export const DEMO_STORAGE_KEY = "hot-lunch-reimagined.demo.v1";
 export interface DemoState {
   snapshot: LunchSnapshot;
   householdId: string;
+  /** America/Vancouver calendar day this snapshot was seeded. */
+  seededOn: string;
 }
 
 export interface KeyValueStorage {
@@ -18,8 +20,63 @@ export interface KeyValueStorage {
 
 interface StoredDemo {
   schemaVersion: 1;
+  seededOn: string;
   snapshot: LunchSnapshot;
   householdId: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === "string";
+}
+
+function isHousehold(value: unknown): boolean {
+  if (!isRecord(value) || !isRecord(value.reminderOptIn) || !isRecord(value.preferences)) {
+    return false;
+  }
+  return (
+    isString(value.id) &&
+    value.id.length > 0 &&
+    isString(value.name) &&
+    isString(value.email) &&
+    isString(value.phone) &&
+    typeof value.reminderOptIn.email === "boolean" &&
+    typeof value.reminderOptIn.sms === "boolean" &&
+    isString(value.preferences.dietaryNotes)
+  );
+}
+
+function isStudent(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return (
+    isString(value.id) &&
+    value.id.length > 0 &&
+    isString(value.householdId) &&
+    isString(value.firstName) &&
+    isString(value.lastName) &&
+    isString(value.grade) &&
+    (GRADES as readonly string[]).includes(value.grade) &&
+    typeof value.archived === "boolean"
+  );
+}
+
+function isMenuDay(value: unknown): boolean {
+  if (!isRecord(value) || !Array.isArray(value.itemIds)) {
+    return false;
+  }
+  return (
+    isString(value.id) &&
+    isString(value.label) &&
+    isString(value.serviceDate) &&
+    isString(value.cutoffAt) &&
+    isString(value.vendorId) &&
+    value.itemIds.every(isString)
+  );
 }
 
 function initialHouseholdId(snapshot: LunchSnapshot, now: Date): string {
@@ -47,54 +104,67 @@ function initialHouseholdId(snapshot: LunchSnapshot, now: Date): string {
 
 function freshState(now: Date): DemoState {
   const snapshot = createSeed(now);
-  return { snapshot, householdId: initialHouseholdId(snapshot, now) };
+  return { snapshot, householdId: initialHouseholdId(snapshot, now), seededOn: zonedDate(now) };
 }
 
 function isSnapshot(value: unknown): value is LunchSnapshot {
-  if (!value || typeof value !== "object") {
+  if (!isRecord(value)) {
     return false;
   }
-  const record = value as Record<string, unknown>;
   return (
-    record.schoolName === SCHOOL_NAME &&
-    typeof record.schoolYearLabel === "string" &&
-    Array.isArray(record.households) &&
-    Array.isArray(record.students) &&
-    Array.isArray(record.vendors) &&
-    Array.isArray(record.menuItems) &&
-    Array.isArray(record.menuDays) &&
-    Array.isArray(record.orders) &&
-    Array.isArray(record.payments) &&
-    Array.isArray(record.reminders)
+    value.schoolName === SCHOOL_NAME &&
+    isString(value.schoolYearLabel) &&
+    Array.isArray(value.households) &&
+    value.households.every(isHousehold) &&
+    Array.isArray(value.students) &&
+    value.students.every(isStudent) &&
+    Array.isArray(value.vendors) &&
+    Array.isArray(value.menuItems) &&
+    Array.isArray(value.menuDays) &&
+    value.menuDays.every(isMenuDay) &&
+    Array.isArray(value.orders) &&
+    Array.isArray(value.payments) &&
+    Array.isArray(value.reminders)
   );
 }
 
-function householdIdFor(snapshot: LunchSnapshot, requested: string): string | null {
+function matchingHouseholdId(snapshot: LunchSnapshot, requested: string): string | null {
   if (snapshot.households.some((household) => household.id === requested)) {
     return requested;
   }
-  return snapshot.households[0]?.id ?? null;
+  return null;
+}
+
+function reseedKeepingHousehold(now: Date, requested: unknown): DemoState {
+  const fresh = freshState(now);
+  const householdId = matchingHouseholdId(fresh.snapshot, String(requested ?? ""));
+  return householdId ? { ...fresh, householdId } : fresh;
 }
 
 export function loadDemoState(storage: KeyValueStorage, now: Date): DemoState {
-  const raw = storage.getItem(DEMO_STORAGE_KEY);
+  let raw: string | null;
+  try {
+    raw = storage.getItem(DEMO_STORAGE_KEY);
+  } catch {
+    return freshState(now);
+  }
   if (!raw) {
     return freshState(now);
   }
   try {
     const parsed = JSON.parse(raw) as unknown;
-    if (!parsed || typeof parsed !== "object") {
+    if (!isRecord(parsed)) {
       return freshState(now);
     }
     const record = parsed as Partial<StoredDemo>;
-    if (record.schemaVersion !== 1 || !isSnapshot(record.snapshot)) {
-      return freshState(now);
+    const today = zonedDate(now);
+    if (record.schemaVersion !== 1 || !isSnapshot(record.snapshot) || record.seededOn !== today) {
+      return reseedKeepingHousehold(now, record.householdId);
     }
-    const householdId = householdIdFor(record.snapshot, String(record.householdId ?? ""));
-    if (!householdId) {
-      return freshState(now);
-    }
-    return { snapshot: record.snapshot, householdId };
+    const householdId =
+      matchingHouseholdId(record.snapshot, String(record.householdId ?? "")) ??
+      initialHouseholdId(record.snapshot, now);
+    return { snapshot: record.snapshot, householdId, seededOn: today };
   } catch {
     return freshState(now);
   }
@@ -103,12 +173,21 @@ export function loadDemoState(storage: KeyValueStorage, now: Date): DemoState {
 export function saveDemoState(storage: KeyValueStorage, state: DemoState): void {
   const stored: StoredDemo = {
     schemaVersion: 1,
+    seededOn: state.seededOn,
     snapshot: state.snapshot,
     householdId: state.householdId,
   };
-  storage.setItem(DEMO_STORAGE_KEY, JSON.stringify(stored));
+  try {
+    storage.setItem(DEMO_STORAGE_KEY, JSON.stringify(stored));
+  } catch {
+    // The visit keeps `state` in memory when the browser refuses the write.
+  }
 }
 
 export function clearDemoState(storage: KeyValueStorage): void {
-  storage.removeItem(DEMO_STORAGE_KEY);
+  try {
+    storage.removeItem(DEMO_STORAGE_KEY);
+  } catch {
+    // Nothing to clear when storage is blocked.
+  }
 }

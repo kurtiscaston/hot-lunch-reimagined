@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { useDemo } from "@/components/demo-provider";
 import { Button } from "@/components/ui/button";
@@ -246,6 +246,15 @@ function StudentOrder({
   const firstItem = items[0];
   const [itemId, setItemId] = useState(firstItem?.id ?? "");
   const [error, setError] = useState<string | null>(null);
+  const orderedLine = useRef<HTMLParagraphElement>(null);
+  const hadOrder = useRef(order !== undefined);
+
+  useEffect(() => {
+    if (order && !hadOrder.current) {
+      orderedLine.current?.focus();
+    }
+    hadOrder.current = order !== undefined;
+  }, [order]);
   const locked = isOrderingLocked(day.cutoffAt, now);
   const orderedItem = order
     ? items.find((item) => item.id === order.itemId)
@@ -262,7 +271,11 @@ function StudentOrder({
         <span className="font-normal text-muted-foreground"> · {gradeLabel(student.grade)}</span>
       </h3>
       {order ? (
-        <p>
+        <p
+          className="rounded-md focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+          ref={orderedLine}
+          tabIndex={-1}
+        >
           Ordered: {orderedItem?.name ?? "Meal"} · {formatPrice(order.priceCents)}
         </p>
       ) : null}
@@ -285,7 +298,6 @@ function StudentOrder({
           <FieldSet>
             <FieldLegend>Meal for {student.firstName}</FieldLegend>
             <ToggleGroup
-              aria-label={`Meal for ${student.firstName}`}
               className="w-full"
               onValueChange={(next) => {
                 const selectedId = next[0];

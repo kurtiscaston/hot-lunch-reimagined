@@ -32,4 +32,10 @@ describe("America/Vancouver calendar", () => {
   it("formats a service date as that calendar day", () => {
     expect(formatServiceDate("2026-11-12")).toBe("Thursday, November 12, 2026");
   });
+
+  it("rejects a month or day that is not a real calendar date", () => {
+    expect(() => formatServiceDate("2026-13-01")).toThrow(/Invalid service date/);
+    expect(() => formatServiceDate("2026-02-31")).toThrow(/Invalid service date/);
+    expect(() => formatServiceDate("2026-00-10")).toThrow(/Invalid service date/);
+  });
 });
