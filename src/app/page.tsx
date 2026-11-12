@@ -10,7 +10,10 @@ export default function HomePage() {
         </h1>
         <p className="max-w-2xl text-base leading-relaxed text-muted-foreground">
           {SCHOOL_NAME} families choose a meal for each child. Ordering locks at
-          the cutoff. Times shown in Pacific Time (America/Vancouver).
+          the cutoff.
+        </p>
+        <p className="max-w-2xl text-base leading-relaxed text-muted-foreground">
+          Times shown in Pacific Time (America/Vancouver).
         </p>
       </div>
       <OrderingBoard />

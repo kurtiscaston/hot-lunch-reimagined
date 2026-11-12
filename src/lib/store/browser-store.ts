@@ -1,6 +1,6 @@
 import { createSeed } from "@/lib/domain/seed";
 import { GRADES, type LunchSnapshot } from "@/lib/domain/types";
-import { zonedDate } from "@/lib/domain/time-zone";
+import { isCalendarDate, isIsoInstant, zonedDate } from "@/lib/domain/time-zone";
 import { SCHOOL_NAME } from "@/lib/site";
 
 export const DEMO_STORAGE_KEY = "hot-lunch-reimagined.demo.v1";
@@ -73,9 +73,41 @@ function isMenuDay(value: unknown): boolean {
     isString(value.id) &&
     isString(value.label) &&
     isString(value.serviceDate) &&
+    isCalendarDate(value.serviceDate) &&
     isString(value.cutoffAt) &&
+    isIsoInstant(value.cutoffAt) &&
     isString(value.vendorId) &&
     value.itemIds.every(isString)
+  );
+}
+
+function isVendor(value: unknown): boolean {
+  return isRecord(value) && isString(value.id) && value.id.length > 0 && isString(value.name);
+}
+
+function isMenuItem(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    isString(value.id) &&
+    value.id.length > 0 &&
+    isString(value.vendorId) &&
+    isString(value.name) &&
+    typeof value.priceCents === "number" &&
+    Number.isFinite(value.priceCents)
+  );
+}
+
+function isOrder(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    isString(value.id) &&
+    isString(value.studentId) &&
+    isString(value.menuDayId) &&
+    isString(value.itemId) &&
+    typeof value.priceCents === "number" &&
+    Number.isFinite(value.priceCents) &&
+    isString(value.placedAt) &&
+    isIsoInstant(value.placedAt)
   );
 }
 
@@ -119,10 +151,13 @@ function isSnapshot(value: unknown): value is LunchSnapshot {
     Array.isArray(value.students) &&
     value.students.every(isStudent) &&
     Array.isArray(value.vendors) &&
+    value.vendors.every(isVendor) &&
     Array.isArray(value.menuItems) &&
+    value.menuItems.every(isMenuItem) &&
     Array.isArray(value.menuDays) &&
     value.menuDays.every(isMenuDay) &&
     Array.isArray(value.orders) &&
+    value.orders.every(isOrder) &&
     Array.isArray(value.payments) &&
     Array.isArray(value.reminders)
   );
@@ -139,6 +174,18 @@ function reseedKeepingHousehold(now: Date, requested: unknown): DemoState {
   const fresh = freshState(now);
   const householdId = matchingHouseholdId(fresh.snapshot, String(requested ?? ""));
   return householdId ? { ...fresh, householdId } : fresh;
+}
+
+/** Keep today's cached demo. Reseed once the America/Vancouver date has changed. */
+export function resolveDemoState(
+  cached: DemoState | null,
+  now: Date,
+  storage: KeyValueStorage,
+): DemoState {
+  if (cached && cached.seededOn === zonedDate(now)) {
+    return cached;
+  }
+  return loadDemoState(storage, now);
 }
 
 export function loadDemoState(storage: KeyValueStorage, now: Date): DemoState {

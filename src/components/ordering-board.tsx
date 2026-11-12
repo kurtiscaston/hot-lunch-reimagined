@@ -256,6 +256,7 @@ function StudentOrder({
     hadOrder.current = order !== undefined;
   }, [order]);
   const locked = isOrderingLocked(day.cutoffAt, now);
+  const studentHeadingId = `${day.id}-${student.id}-name`;
   const orderedItem = order
     ? items.find((item) => item.id === order.itemId)
     : undefined;
@@ -263,10 +264,10 @@ function StudentOrder({
 
   return (
     <section
-      aria-label={`${student.firstName} ${student.lastName}`}
+      aria-labelledby={studentHeadingId}
       className="flex flex-col gap-3 border-t border-border pt-4"
     >
-      <h3 className="text-sm font-medium">
+      <h3 className="text-sm font-medium" id={studentHeadingId}>
         {student.firstName} {student.lastName}
         <span className="font-normal text-muted-foreground"> · {gradeLabel(student.grade)}</span>
       </h3>
@@ -298,7 +299,7 @@ function StudentOrder({
           <FieldSet>
             <FieldLegend>Meal for {student.firstName}</FieldLegend>
             <ToggleGroup
-              className="w-full"
+              className="w-full flex-wrap"
               onValueChange={(next) => {
                 const selectedId = next[0];
                 if (selectedId) {
@@ -312,7 +313,12 @@ function StudentOrder({
               variant="outline"
             >
               {items.map((item) => (
-                <ToggleGroupItem className="flex-1 whitespace-normal" key={item.id} value={item.id}>
+                <ToggleGroupItem
+                  className="flex-1 whitespace-normal"
+                  key={item.id}
+                  type="button"
+                  value={item.id}
+                >
                   {item.name}
                 </ToggleGroupItem>
               ))}

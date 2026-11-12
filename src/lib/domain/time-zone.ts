@@ -74,11 +74,13 @@ export function dateAtZone(
   return new Date(utcGuess - zoneOffsetMs(new Date(first), timeZone));
 }
 
-/** Format a Vancouver service date without shifting it through another zone. */
-export function formatServiceDate(serviceDate: string): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(serviceDate);
+const CALENDAR_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+const ISO_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+
+function calendarParts(value: string): { year: number; month: number; day: number } | null {
+  const match = CALENDAR_DATE.exec(value);
   if (!match) {
-    throw new Error(`Invalid service date: ${serviceDate}`);
+    return null;
   }
   const year = Number(match[1]);
   const month = Number(match[2]);
@@ -92,16 +94,41 @@ export function formatServiceDate(serviceDate: string): string {
     day < 1 ||
     day > 31
   ) {
-    throw new Error(`Invalid service date: ${serviceDate}`);
+    return null;
   }
-  const noonUtc = new Date(Date.UTC(year, month - 1, day, 12));
+  const probe = new Date(Date.UTC(year, month - 1, day));
   if (
-    noonUtc.getUTCFullYear() !== year ||
-    noonUtc.getUTCMonth() !== month - 1 ||
-    noonUtc.getUTCDate() !== day
+    probe.getUTCFullYear() !== year ||
+    probe.getUTCMonth() !== month - 1 ||
+    probe.getUTCDate() !== day
   ) {
+    return null;
+  }
+  return { year, month, day };
+}
+
+/** YYYY-MM-DD that is a real calendar day. */
+export function isCalendarDate(value: string): boolean {
+  return calendarParts(value) !== null;
+}
+
+/** Instant produced by Date.toISOString(), not a rolled-over or local timestamp. */
+export function isIsoInstant(value: string): boolean {
+  if (!ISO_INSTANT.test(value)) {
+    return false;
+  }
+  const parsed = Date.parse(value);
+  return !Number.isNaN(parsed) && new Date(parsed).toISOString() === value;
+}
+
+/** Format a Vancouver service date without shifting it through another zone. */
+export function formatServiceDate(serviceDate: string): string {
+  const parts = calendarParts(serviceDate);
+  if (!parts) {
     throw new Error(`Invalid service date: ${serviceDate}`);
   }
+  const { year, month, day } = parts;
+  const noonUtc = new Date(Date.UTC(year, month - 1, day, 12));
   return new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     month: "long",

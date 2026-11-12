@@ -7,9 +7,11 @@ import {
   type PlaceOrderInput,
   type PlaceOrderResult,
 } from "@/lib/domain/place-order";
+import { zonedDate } from "@/lib/domain/time-zone";
 import {
   clearDemoState,
   loadDemoState,
+  resolveDemoState,
   saveDemoState,
   type DemoState,
   type KeyValueStorage,
@@ -42,7 +44,15 @@ const memoryStorage: KeyValueStorage = {
 
 function subscribe(listener: () => void) {
   listeners.add(listener);
-  return () => listeners.delete(listener);
+  const timer = window.setInterval(() => {
+    if (cached && cached.seededOn !== zonedDate(new Date())) {
+      listener();
+    }
+  }, 1000);
+  return () => {
+    window.clearInterval(timer);
+    listeners.delete(listener);
+  };
 }
 
 function browserStorage(): KeyValueStorage {
@@ -70,8 +80,14 @@ function writeStored(state: DemoState) {
 }
 
 function readClient(): DemoState {
-  if (!cached) {
-    cached = readStored(new Date());
+  const now = new Date();
+  if (cached && cached.seededOn === zonedDate(now)) {
+    return cached;
+  }
+  try {
+    cached = resolveDemoState(cached, now, browserStorage());
+  } catch {
+    cached = resolveDemoState(null, now, memoryStorage);
   }
   return cached;
 }

@@ -2,7 +2,9 @@ import { expect, test } from "@playwright/test";
 
 test("a household can order before the cutoff and not after it", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByText("Pacific Time (America/Vancouver)")).toBeVisible();
+  await expect(
+    page.getByText("Times shown in Pacific Time (America/Vancouver).", { exact: true }),
+  ).toBeVisible();
   await expect(page.getByLabel("Household")).toBeVisible();
 
   const lockedDay = page.locator("article").filter({
