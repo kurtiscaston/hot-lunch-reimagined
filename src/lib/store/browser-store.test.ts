@@ -72,7 +72,7 @@ describe("browser demo store", () => {
     const loaded = loadDemoState(storage, NOW);
     expect(loaded.snapshot).toEqual(createSeed(NOW));
     expect(loaded.seededOn).toBe(zonedDate(NOW));
-    expect(() => saveDemoState(storage, { ...loaded, householdId: "hh-dunlow" })).not.toThrow();
+    expect(saveDemoState(storage, { ...loaded, householdId: "hh-dunlow" })).toBe(false);
     expect(() => clearDemoState(storage)).not.toThrow();
     expect(loadDemoState(storage, NOW).householdId).toBe("hh-brindle");
   });

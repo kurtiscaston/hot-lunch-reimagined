@@ -2,6 +2,7 @@ import { expect, type Locator, test } from "@playwright/test";
 
 import { menuDayStatus } from "../src/lib/domain/cutoff";
 import { createSeed, MENU_DAY_IDS } from "../src/lib/domain/seed";
+import { zonedDate } from "../src/lib/domain/time-zone";
 
 /** Frozen instant. Day counts and the next cutoff come from createSeed in src/lib/domain/seed.ts. */
 const FROZEN_AT = "2026-11-12T20:00:00.000Z";
@@ -26,6 +27,7 @@ test("a household can order before the cutoff and not after it", async ({ page }
   if (!nextCutoff || !openDaySeed) {
     throw new Error("Seed is missing an upcoming cutoff or the open day");
   }
+  expect(zonedDate(new Date(nextCutoff.cutoffAt))).toBe(zonedDate(now));
   const meals = openDaySeed.itemIds.map((itemId) => {
     const item = seed.menuItems.find((entry) => entry.id === itemId);
     if (!item) {

@@ -92,4 +92,30 @@ describe("commitPlaceOrder", () => {
       stale.snapshot.menuDays.map((day) => day.cutoffAt),
     );
   });
+
+  it("keeps the in-memory order when the previous save failed", () => {
+    const storage = memoryStorage();
+    const stored = loadDemoState(storage, NOW);
+    expect(saveDemoState(storage, stored)).toBe(true);
+    const remembered = placeOrder(stored.snapshot, OTHER, NOW);
+    if (!remembered.ok) {
+      throw new Error(remembered.reason);
+    }
+    const fallback = { ...stored, snapshot: remembered.snapshot };
+
+    const committed = commitPlaceOrder(storage, fallback, OURS, NOW, { lastWriteFailed: true });
+    expect(committed.ok).toBe(true);
+    if (!committed.ok) {
+      return;
+    }
+    const ids = committed.state.snapshot.orders.map(
+      (order) => `${order.studentId}:${order.menuDayId}`,
+    );
+    expect(ids).toContain(`${OTHER.studentId}:${OTHER.menuDayId}`);
+    expect(ids).toContain(`${OURS.studentId}:${OURS.menuDayId}`);
+    expect(committed.state.snapshot.menuDays.map((day) => day.cutoffAt)).toEqual(
+      fallback.snapshot.menuDays.map((day) => day.cutoffAt),
+    );
+  });
 });
+

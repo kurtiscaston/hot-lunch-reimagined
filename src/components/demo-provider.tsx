@@ -3,6 +3,7 @@
 import { createContext, useContext, useMemo, useSyncExternalStore, type ReactNode } from "react";
 
 import { type PlaceOrderInput, type PlaceOrderResult } from "@/lib/domain/place-order";
+import { readClock, subscribeClock } from "@/lib/clock";
 import { zonedDate } from "@/lib/domain/time-zone";
 import {
   clearDemoState,
@@ -26,6 +27,7 @@ const DemoContext = createContext<DemoApi | null>(null);
 
 const listeners = new Set<() => void>();
 let cached: DemoState | null = null;
+let lastWriteOk = true;
 
 const memoryValues = new Map<string, string>();
 const memoryStorage: KeyValueStorage = {
@@ -47,17 +49,18 @@ function subscribe(listener: () => void) {
       return;
     }
     cached = loadDemoState(browserStorage(), new Date());
+    lastWriteOk = true;
     listener();
   };
   window.addEventListener("storage", onStorage);
-  const timer = window.setInterval(() => {
-    if (cached && cached.seededOn !== zonedDate(new Date())) {
+  const stopClock = subscribeClock(() => {
+    if (cached && cached.seededOn !== zonedDate(new Date(readClock()))) {
       listener();
     }
-  }, 1000);
+  });
   return () => {
     window.removeEventListener("storage", onStorage);
-    window.clearInterval(timer);
+    stopClock();
     listeners.delete(listener);
   };
 }
@@ -72,10 +75,6 @@ function browserStorage(): KeyValueStorage {
 
 function readStored(now: Date): DemoState {
   return loadDemoState(browserStorage(), now);
-}
-
-function writeStored(state: DemoState) {
-  saveDemoState(browserStorage(), state);
 }
 
 function readClient(): DemoState {
@@ -95,7 +94,7 @@ function notify() {
 
 function publish(next: DemoState) {
   cached = next;
-  writeStored(next);
+  lastWriteOk = saveDemoState(browserStorage(), next);
   notify();
 }
 
@@ -117,11 +116,14 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         publish({ ...current, householdId });
       },
       placeOrder(input: PlaceOrderInput) {
-        const outcome = commitPlaceOrder(browserStorage(), readClient(), input, new Date());
+        const outcome = commitPlaceOrder(browserStorage(), readClient(), input, new Date(), {
+          lastWriteFailed: !lastWriteOk,
+        });
         if (!outcome.ok) {
           return outcome;
         }
         cached = outcome.state;
+        lastWriteOk = outcome.saved;
         notify();
         const result: PlaceOrderResult = {
           ok: true,
