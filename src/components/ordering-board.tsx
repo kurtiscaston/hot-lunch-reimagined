@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { useDemo } from "@/components/demo-provider";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ import {
 } from "@/lib/domain/place-order";
 import type { MenuDay, MenuItem, Order, Student } from "@/lib/domain/types";
 import { selectedMealId } from "@/lib/domain/selected-meal";
+import { shouldFocusMissedCutoff } from "@/lib/domain/missed-cutoff-focus";
 import { formatCutoff, formatPrice, formatServiceDate } from "@/lib/domain/time-zone";
 
 let clockMs = 0;
@@ -113,6 +114,7 @@ export function OrderingBoard() {
                 <NativeSelect
                   className="w-full"
                   id="demo-household"
+                  size="lg"
                   onChange={(event) => demo.setHouseholdId(event.target.value)}
                   value={household.id}
                 >
@@ -189,7 +191,7 @@ function MenuDayCard({
   const headingId = `${day.id}-heading`;
 
   return (
-    <article aria-labelledby={headingId} className="flex flex-col">
+    <article aria-labelledby={headingId} className="flex flex-col" id={day.id}>
       <Card>
         <CardHeader>
           <CardTitle>
@@ -248,7 +250,11 @@ function StudentOrder({
   const [itemId, setItemId] = useState(firstItem?.id ?? "");
   const [error, setError] = useState<string | null>(null);
   const orderedLine = useRef<HTMLParagraphElement>(null);
+  const missedLine = useRef<HTMLParagraphElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const hadOrder = useRef(order !== undefined);
+  const pendingMissedFocus = useRef(false);
+  const [focusInside, setFocusInside] = useState(false);
 
   useEffect(() => {
     if (order && !hadOrder.current) {
@@ -257,6 +263,27 @@ function StudentOrder({
     hadOrder.current = order !== undefined;
   }, [order]);
   const locked = isOrderingLocked(day.cutoffAt, now);
+  const showForm = Boolean(firstItem) && !order && (!locked || focusInside);
+  const showMissed = locked && !order && !focusInside;
+
+  useLayoutEffect(() => {
+    if (!locked || order || !focusInside || !formRef.current) {
+      return;
+    }
+    pendingMissedFocus.current = shouldFocusMissedCutoff(
+      formRef.current,
+      document.activeElement,
+    );
+    setFocusInside(false);
+  }, [locked, order, focusInside]);
+
+  useLayoutEffect(() => {
+    if (!showMissed || !pendingMissedFocus.current) {
+      return;
+    }
+    missedLine.current?.focus();
+    pendingMissedFocus.current = false;
+  }, [showMissed]);
   const studentHeadingId = `${day.id}-${student.id}-name`;
   const mealId = selectedMealId(
     itemId,
@@ -285,10 +312,27 @@ function StudentOrder({
           Ordered: {orderedItem?.name ?? "Meal"} · {formatPrice(order.priceCents)}
         </p>
       ) : null}
-      {!order && locked ? <p>Missed the cutoff.</p> : null}
-      {!order && !locked && firstItem ? (
+      {showMissed ? (
+        <p
+          className="rounded-md focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+          ref={missedLine}
+          tabIndex={-1}
+        >
+          Missed the cutoff.
+        </p>
+      ) : null}
+      {showForm ? (
         <form
           className="flex flex-col gap-3"
+          onBlur={(event) => {
+            const next = event.relatedTarget;
+            if (next instanceof Node && event.currentTarget.contains(next)) {
+              return;
+            }
+            setFocusInside(false);
+          }}
+          onFocus={() => setFocusInside(true)}
+          ref={formRef}
           onSubmit={(event) => {
             event.preventDefault();
             const result = onPlace({
@@ -333,7 +377,7 @@ function StudentOrder({
             ) : null}
             {error ? <FieldError>{error}</FieldError> : null}
           </FieldSet>
-          <Button className="w-full" disabled={!mealId} size="lg" type="submit">
+          <Button className="w-full" disabled={!mealId || locked} size="lg" type="submit">
             Place order for {student.firstName}
           </Button>
         </form>

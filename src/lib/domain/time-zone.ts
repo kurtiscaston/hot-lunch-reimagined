@@ -83,14 +83,6 @@ export function zonedDate(instant: Date, timeZone = LUNCH_TIME_ZONE): string {
   return `${year}-${monthText}-${dayText}`;
 }
 
-export function zonedYear(instant: Date, timeZone = LUNCH_TIME_ZONE): number {
-  return zonedCalendar(instant, timeZone).year;
-}
-
-export function zonedMonth(instant: Date, timeZone = LUNCH_TIME_ZONE): number {
-  return zonedCalendar(instant, timeZone).month;
-}
-
 function zoneOffsetMs(instant: Date, timeZone: string): number {
   const formatter =
     timeZone === LUNCH_TIME_ZONE
