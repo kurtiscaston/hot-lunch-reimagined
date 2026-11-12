@@ -8,6 +8,7 @@ export function ResetDemoButton() {
 
   return (
     <Button
+      className="min-h-11"
       disabled={!demo}
       onClick={() => demo?.reset()}
       size="lg"

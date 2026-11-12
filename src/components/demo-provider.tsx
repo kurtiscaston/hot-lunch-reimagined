@@ -2,11 +2,7 @@
 
 import { createContext, useContext, useMemo, useSyncExternalStore, type ReactNode } from "react";
 
-import {
-  placeOrder as placeOrderInSnapshot,
-  type PlaceOrderInput,
-  type PlaceOrderResult,
-} from "@/lib/domain/place-order";
+import { type PlaceOrderInput, type PlaceOrderResult } from "@/lib/domain/place-order";
 import { zonedDate } from "@/lib/domain/time-zone";
 import {
   clearDemoState,
@@ -17,6 +13,7 @@ import {
   type DemoState,
   type KeyValueStorage,
 } from "@/lib/store/browser-store";
+import { commitPlaceOrder } from "@/lib/store/commit-order";
 
 type DemoApi = {
   state: DemoState;
@@ -90,12 +87,16 @@ function readClient(): DemoState {
   return cached;
 }
 
-function publish(next: DemoState) {
-  cached = next;
-  writeStored(next);
+function notify() {
   for (const listener of listeners) {
     listener();
   }
+}
+
+function publish(next: DemoState) {
+  cached = next;
+  writeStored(next);
+  notify();
 }
 
 export function DemoProvider({ children }: { children: ReactNode }) {
@@ -116,11 +117,17 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         publish({ ...current, householdId });
       },
       placeOrder(input: PlaceOrderInput) {
-        const current = readClient();
-        const result = placeOrderInSnapshot(current.snapshot, input, new Date());
-        if (result.ok) {
-          publish({ ...current, snapshot: result.snapshot });
+        const outcome = commitPlaceOrder(browserStorage(), readClient(), input, new Date());
+        if (!outcome.ok) {
+          return outcome;
         }
+        cached = outcome.state;
+        notify();
+        const result: PlaceOrderResult = {
+          ok: true,
+          snapshot: outcome.state.snapshot,
+          order: outcome.order,
+        };
         return result;
       },
       reset() {

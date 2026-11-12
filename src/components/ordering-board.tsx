@@ -23,7 +23,14 @@ import {
 } from "@/components/ui/field";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { formatRemaining, isOrderingLocked, menuDayStatus, remainingMs } from "@/lib/domain/cutoff";
+import {
+  formatRemaining,
+  isOrderingLocked,
+  menuDayStatus,
+  remainingMs,
+  type MenuDayStatus,
+} from "@/lib/domain/cutoff";
+import { lockAnnouncement } from "@/lib/domain/lock-announcement";
 import {
   placeOrderMessage,
   type PlaceOrderInput,
@@ -87,7 +94,7 @@ export function OrderingBoard() {
   const now = nowMs === 0 ? null : new Date(nowMs);
 
   if (!demo || !now) {
-    return <p>Loading demo data…</p>;
+    return <p role="status">Loading demo data…</p>;
   }
 
   const { snapshot, householdId } = demo.state;
@@ -190,7 +197,20 @@ function MenuDayCard({
   onPlace: (input: PlaceOrderInput) => PlaceOrderResult;
 }) {
   const status = menuDayStatus(day.cutoffAt, now);
+  const dayLabel = formatServiceDate(day.serviceDate);
+  const [trackedStatus, setTrackedStatus] = useState<MenuDayStatus>(status);
+  const [lockNotice, setLockNotice] = useState("");
+  if (status !== trackedStatus) {
+    setTrackedStatus(status);
+    const notice = lockAnnouncement(trackedStatus, status, dayLabel);
+    if (notice) {
+      setLockNotice(notice);
+    }
+  }
   const headingId = `${day.id}-heading`;
+  const dayHasOrder = students.some((pupil) =>
+    orders.some((order) => order.studentId === pupil.id && order.menuDayId === day.id),
+  );
 
   return (
     <article aria-labelledby={headingId} className="flex flex-col" id={day.id}>
@@ -198,7 +218,7 @@ function MenuDayCard({
         <CardHeader>
           <CardTitle>
             <h2 className="text-base font-medium" id={headingId}>
-              {formatServiceDate(day.serviceDate)}
+              {dayLabel}
             </h2>
           </CardTitle>
           <CardDescription>
@@ -211,21 +231,28 @@ function MenuDayCard({
               <Badge variant={statusVariant(status)}>{statusLabel(status)}</Badge>
               <p className="text-sm font-medium">{formatRemaining(remainingMs(day.cutoffAt, now))}</p>
             </div>
-            <div className="flex flex-col gap-4">
-              {students.map((pupil) => (
-                <StudentOrder
-                  day={day}
-                  items={items}
-                  key={pupil.id}
-                  now={now}
-                  onPlace={onPlace}
-                  order={orders.find(
-                    (entry) => entry.studentId === pupil.id && entry.menuDayId === day.id,
-                  )}
-                  student={pupil}
-                />
-              ))}
-            </div>
+            <p aria-live="polite" className="sr-only">
+              {lockNotice}
+            </p>
+            {items.length === 0 && !dayHasOrder ? (
+              <p>No meals listed.</p>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {students.map((pupil) => (
+                  <StudentOrder
+                    day={day}
+                    items={items}
+                    key={pupil.id}
+                    now={now}
+                    onPlace={onPlace}
+                    order={orders.find(
+                      (entry) => entry.studentId === pupil.id && entry.menuDayId === day.id,
+                    )}
+                    student={pupil}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -370,7 +397,7 @@ function StudentOrder({
             >
               {items.map((item) => (
                 <ToggleGroupItem
-                  className="flex-1 whitespace-normal"
+                  className="min-h-11 min-w-11 flex-1 whitespace-normal"
                   key={item.id}
                   type="button"
                   value={item.id}
@@ -384,7 +411,7 @@ function StudentOrder({
             ) : null}
             {error ? <FieldError>{error}</FieldError> : null}
           </FieldSet>
-          <Button className="w-full" disabled={!mealId || locked} size="lg" type="submit">
+          <Button className="min-h-11 w-full" disabled={!mealId || locked} size="lg" type="submit">
             Place order for {student.firstName}
           </Button>
         </form>

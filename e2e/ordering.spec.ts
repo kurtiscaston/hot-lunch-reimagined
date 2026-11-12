@@ -14,9 +14,11 @@ test("a household can order before the cutoff and not after it", async ({ page }
   await expect(
     page.getByText("Times shown in Pacific Time (America/Vancouver).", { exact: true }),
   ).toBeVisible();
-  const household = page.getByLabel("Household");
+  const household = page.getByLabel("Household", { exact: true });
   await expect(household).toBeVisible();
   await expectTouchTarget(household);
+  const reset = page.getByRole("button", { name: "Reset demo data" });
+  await expectTouchTarget(reset);
 
   const lockedDays = page.locator("article").filter({
     has: page.getByText("Locked", { exact: true }),
@@ -24,11 +26,22 @@ test("a household can order before the cutoff and not after it", async ({ page }
   await expect(lockedDays).toHaveCount(1);
   const lockedDay = lockedDays.first();
   await expect(lockedDay.getByRole("button", { name: /Place order/ })).toHaveCount(0);
+  const lockNotices = page.locator("[aria-live=polite]");
+  await expect(lockNotices).toHaveCount(4);
+  await expect(lockNotices.filter({ hasText: /.+/ })).toHaveCount(0);
 
-  await page.getByLabel("Household").selectOption({ label: "Brindle" });
+  await page.clock.setFixedTime(new Date(Date.parse("2026-11-12T20:00:00.000Z") + 90 * 60 * 1000));
+  await page.clock.fastForward(1000);
+  await expect(lockNotices.filter({ hasText: "is locked." })).toHaveCount(1);
+
+  await page.getByLabel("Household", { exact: true }).selectOption({ label: "Brindle" });
   const openDay = page.locator("#day-open");
   const ada = openDay.getByRole("region", { name: "Ada Brindle" });
-  await ada.getByRole("button", { name: "Place order for Ada" }).click();
+  await expectTouchTarget(ada.getByRole("button", { name: "Citrus chicken taco" }));
+  await expectTouchTarget(ada.getByRole("button", { name: "Black bean taco" }));
+  const placeOrder = ada.getByRole("button", { name: "Place order for Ada" });
+  await expectTouchTarget(placeOrder);
+  await placeOrder.click();
   const ordered = ada.getByText(/^Ordered:/);
   await expect(ordered).toBeVisible();
   await expect(ordered).toBeFocused();
