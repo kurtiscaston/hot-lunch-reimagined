@@ -96,15 +96,15 @@ export function OrderingBoard() {
   const students = snapshot.students.filter(
     (pupil) => pupil.householdId === household.id && !pupil.archived,
   );
-  const days = [...snapshot.menuDays].sort((a, b) => a.cutoffAt.localeCompare(b.cutoffAt));
+  const days = snapshot.menuDays
+    .filter((day) => !day.archived)
+    .sort((a, b) => a.cutoffAt.localeCompare(b.cutoffAt));
 
   return (
     <div className="flex flex-col gap-6">
       <Card>
         <CardHeader>
-          <CardTitle>
-            <h2 className="text-base font-medium">{household.name}</h2>
-          </CardTitle>
+          <CardTitle heading="h2">{household.name}</CardTitle>
           <CardDescription>Demo household. Not a sign-in.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -132,11 +132,12 @@ export function OrderingBoard() {
             </FieldGroup>
             <fieldset className="flex flex-col gap-2">
               <legend className="text-sm font-medium">Reminders</legend>
-              <p className="text-sm leading-relaxed text-muted-foreground">
+              <p className="text-sm leading-relaxed text-muted-foreground" id="reminder-demo-note">
                 Demo only. Nothing is emailed or texted.
               </p>
               <label className="flex min-h-11 items-center gap-3 text-sm">
                 <input
+                  aria-describedby="reminder-demo-note"
                   checked={household.reminderOptIn.email}
                   className="size-11 accent-primary"
                   onChange={(event) => demo.setReminderChannel("email", event.target.checked)}
@@ -146,6 +147,7 @@ export function OrderingBoard() {
               </label>
               <label className="flex min-h-11 items-center gap-3 text-sm">
                 <input
+                  aria-describedby="reminder-demo-note"
                   checked={household.reminderOptIn.sms}
                   className="size-11 accent-primary"
                   onChange={(event) => demo.setReminderChannel("sms", event.target.checked)}
@@ -229,11 +231,15 @@ function MenuDayCard({
     missedLine.current?.focus();
   }, []);
   const dayHasOrder = students.some((pupil) =>
-    orders.some((order) => order.studentId === pupil.id && order.menuDayId === day.id),
+    orders.some(
+      (order) => !order.archived && order.studentId === pupil.id && order.menuDayId === day.id,
+    ),
   );
   const missedStudents = students.filter(
     (pupil) =>
-      !orders.some((order) => order.studentId === pupil.id && order.menuDayId === day.id),
+      !orders.some(
+        (order) => !order.archived && order.studentId === pupil.id && order.menuDayId === day.id,
+      ),
   );
   const showMissed = status === "locked" && missedStudents.length > 0;
   const missedNames = missedStudents
@@ -244,10 +250,8 @@ function MenuDayCard({
     <article aria-labelledby={headingId} className="flex flex-col" id={day.id}>
       <Card>
         <CardHeader>
-          <CardTitle>
-            <h2 className="text-base font-medium" id={headingId}>
-              {dayLabel}
-            </h2>
+          <CardTitle heading="h2" id={headingId}>
+            {dayLabel}
           </CardTitle>
           <CardDescription>
             {vendorName}. Cutoff {formatCutoff(day.cutoffAt)}.
@@ -269,6 +273,7 @@ function MenuDayCard({
                 {showMissed ? (
                   <p
                     className="rounded-md focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                    id={`${day.id}-missed`}
                     ref={missedLine}
                     tabIndex={-1}
                   >
@@ -280,11 +285,15 @@ function MenuDayCard({
                     day={day}
                     items={items}
                     key={pupil.id}
+                    missed={showMissed && missedStudents.some((missed) => missed.id === pupil.id)}
                     now={now}
                     onMissedFocus={onMissedFocus}
                     onPlace={onPlace}
                     order={orders.find(
-                      (entry) => entry.studentId === pupil.id && entry.menuDayId === day.id,
+                      (entry) =>
+                        !entry.archived &&
+                        entry.studentId === pupil.id &&
+                        entry.menuDayId === day.id,
                     )}
                     student={pupil}
                   />
@@ -306,6 +315,7 @@ function StudentOrder({
   now,
   onPlace,
   onMissedFocus,
+  missed,
 }: {
   student: Student;
   day: MenuDay;
@@ -314,6 +324,7 @@ function StudentOrder({
   now: Date;
   onPlace: (input: PlaceOrderInput) => PlaceOrderResult;
   onMissedFocus: () => void;
+  missed: boolean;
 }) {
   const firstItem = items[0];
   const [itemId, setItemId] = useState(firstItem?.id ?? "");
@@ -377,6 +388,9 @@ function StudentOrder({
         >
           Ordered: {orderedItem?.name ?? "Meal"} · {formatPrice(order.priceCents)}
         </p>
+      ) : null}
+      {missed && !showForm ? (
+        <p className="text-sm text-muted-foreground">No order.</p>
       ) : null}
       {showForm ? (
         <form

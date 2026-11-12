@@ -22,19 +22,20 @@ export function ReminderOutbox() {
   }
 
   const { snapshot } = demo.state;
-  const reminders = [...snapshot.reminders].sort((left, right) => {
-    const byTime = left.createdAt.localeCompare(right.createdAt);
-    return byTime === 0 ? left.id.localeCompare(right.id) : byTime;
-  });
+  const reminders = snapshot.reminders
+    .filter((reminder) => !reminder.archived)
+    .sort((left, right) => {
+      const byTime = left.createdAt.localeCompare(right.createdAt);
+      return byTime === 0 ? left.id.localeCompare(right.id) : byTime;
+    });
+  const archived = snapshot.reminders.filter((reminder) => reminder.archived);
 
   return (
     <section aria-labelledby="mock-outbox-heading">
       <Card>
         <CardHeader>
-          <CardTitle>
-            <h2 className="text-base font-medium" id="mock-outbox-heading">
-              Mock outbox
-            </h2>
+          <CardTitle heading="h2" id="mock-outbox-heading">
+            Mock outbox
           </CardTitle>
           <CardDescription>
             Recorded in this browser before each cutoff. No email or text was sent.
@@ -67,6 +68,25 @@ export function ReminderOutbox() {
               })}
             </ul>
           )}
+          {archived.length > 0 ? (
+            <details className="mt-4">
+              <summary className="min-h-11 cursor-pointer py-2">
+                Archived from the previous school year ({archived.length})
+              </summary>
+              <ul className="flex flex-col gap-2 pt-2">
+                {archived.map((reminder) => {
+                  const household = snapshot.households.find(
+                    (entry) => entry.id === reminder.householdId,
+                  );
+                  return (
+                    <li key={reminder.id}>
+                      {household?.name ?? "Household"} · {channelLabel(reminder.channel)}. Archived.
+                    </li>
+                  );
+                })}
+              </ul>
+            </details>
+          ) : null}
         </CardContent>
       </Card>
     </section>

@@ -57,7 +57,7 @@ export function placeOrder(
   if (!day) {
     return { ok: false, reason: "unknown-day" };
   }
-  if (isOrderingLocked(day.cutoffAt, now)) {
+  if (day.archived || isOrderingLocked(day.cutoffAt, now)) {
     return { ok: false, reason: "locked" };
   }
   if (!day.itemIds.includes(input.itemId)) {
@@ -70,7 +70,10 @@ export function placeOrder(
   }
   if (
     snapshot.orders.some(
-      (order) => order.studentId === input.studentId && order.menuDayId === input.menuDayId,
+      (order) =>
+        !order.archived &&
+        order.studentId === input.studentId &&
+        order.menuDayId === input.menuDayId,
     )
   ) {
     return { ok: false, reason: "duplicate" };

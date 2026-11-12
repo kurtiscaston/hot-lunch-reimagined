@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createSeed } from "@/lib/domain/seed";
 import { dateAtZone, zonedDate } from "@/lib/domain/time-zone";
+import { canPersistDemo } from "@/lib/store/demo-write";
 
 import {
   clearDemoState,
@@ -75,6 +76,26 @@ describe("browser demo store", () => {
     expect(saveDemoState(storage, { ...loaded, householdId: "hh-dunlow" })).toBe(false);
     expect(() => clearDemoState(storage)).not.toThrow();
     expect(loadDemoState(storage, NOW).householdId).toBe("hh-brindle");
+  });
+
+  it("reseeds any earlier seededOn so a day change can be saved again", () => {
+    const storage = memoryStorage();
+    const loaded = loadDemoState(storage, NOW);
+    const yesterday = dateAtZone(2026, 11, 11, 12, 0);
+    saveDemoState(storage, {
+      ...loaded,
+      seededOn: zonedDate(yesterday),
+      householdId: "hh-dunlow",
+      snapshot: { ...loaded.snapshot, rolloverApplied: true },
+    });
+
+    const refreshed = loadDemoState(storage, NOW);
+    expect(refreshed.seededOn).toBe(zonedDate(NOW));
+    expect(refreshed.seededOn).not.toBe(zonedDate(yesterday));
+    expect(canPersistDemo(refreshed.seededOn, NOW)).toBe(true);
+    expect(refreshed.householdId).toBe("hh-dunlow");
+    expect(refreshed.snapshot.rolloverApplied).toBe(false);
+    expect(refreshed.snapshot).toEqual(createSeed(NOW));
   });
 
   it("reseeds when the stored Vancouver date is no longer today", () => {

@@ -52,6 +52,8 @@ export interface MenuDay {
   cutoffAt: string;
   vendorId: string;
   itemIds: string[];
+  /** Kept after a school-year rollover so earlier orders still resolve. */
+  archived?: boolean;
 }
 
 export interface Order {
@@ -61,6 +63,8 @@ export interface Order {
   itemId: string;
   priceCents: number;
   placedAt: string;
+  /** Kept after a school-year rollover. It does not count as this year's order. */
+  archived?: boolean;
 }
 
 export type PaymentMethod = "cash" | "check" | "mock-transfer";
@@ -72,6 +76,8 @@ export interface Payment {
   receivedAt: string;
   method: PaymentMethod;
   reference: string;
+  /** Kept after a school-year rollover. It is not a credit in the new year. */
+  archived?: boolean;
 }
 
 export interface Reminder {
@@ -83,6 +89,8 @@ export interface Reminder {
   body: string;
   /** Recorded locally. No email or SMS provider is called. */
   status: "mock-sent";
+  /** Kept after a school-year rollover. It does not block a new reminder. */
+  archived?: boolean;
 }
 
 export interface LunchSnapshot {

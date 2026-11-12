@@ -13,6 +13,22 @@ export function reminderBody(householdName: string, dayLabel: string, channel: C
   return `${SCHOOL_NAME} demo ${channelLabel} for ${householdName}. ${dayLabel} is still open. No message was sent.`;
 }
 
+/** True when a menu day is still open and inside the reminder window. */
+export function reminderWindowOpen(snapshot: LunchSnapshot, now: Date): boolean {
+  const nowMs = now.getTime();
+  return snapshot.menuDays.some((day) => {
+    if (day.archived || day.itemIds.length === 0) {
+      return false;
+    }
+    const cutoff = Date.parse(day.cutoffAt);
+    if (Number.isNaN(cutoff)) {
+      return false;
+    }
+    const remaining = cutoff - nowMs;
+    return remaining > 0 && remaining <= REMINDER_LEAD_MS;
+  });
+}
+
 /** Reminders that are due now and not already in the snapshot. Nothing is sent. */
 export function dueReminders(snapshot: LunchSnapshot, now: Date): Reminder[] {
   const nowMs = now.getTime();
@@ -26,6 +42,7 @@ export function dueReminders(snapshot: LunchSnapshot, now: Date): Reminder[] {
   for (const day of snapshot.menuDays) {
     const cutoff = Date.parse(day.cutoffAt);
     if (
+      day.archived ||
       day.itemIds.length === 0 ||
       Number.isNaN(cutoff) ||
       cutoff <= nowMs ||
@@ -40,7 +57,8 @@ export function dueReminders(snapshot: LunchSnapshot, now: Date): Reminder[] {
       const missing = pupils.some(
         (pupil) =>
           !snapshot.orders.some(
-            (order) => order.studentId === pupil.id && order.menuDayId === day.id,
+            (order) =>
+              !order.archived && order.studentId === pupil.id && order.menuDayId === day.id,
           ),
       );
       if (!missing) {
