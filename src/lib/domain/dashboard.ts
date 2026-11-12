@@ -154,9 +154,12 @@ export function unorderedStudents(snapshot: LunchSnapshot, now: Date): Unordered
   return rows;
 }
 
+const PLAIN_AMOUNT = /^-?\$?\d[\d,]*(\.\d+)?$/;
+
 /** Spreadsheet apps treat a leading = + - or @ as a formula, including after a tab or CR. */
 export function csvCell(value: string): string {
-  const safe = /^[\t\r]*[=+\-@]/.test(value) ? `'${value}` : value;
+  const formula = /^[\t\r]*[=+\-@]/.test(value) && !PLAIN_AMOUNT.test(value);
+  const safe = formula ? `'${value}` : value;
   if (/[",\r\n]/.test(safe)) {
     return `"${safe.replaceAll('"', '""')}"`;
   }

@@ -52,7 +52,7 @@ function downloadCsv(filename: string, csv: string) {
   window.setTimeout(() => {
     link.remove();
     URL.revokeObjectURL(url);
-  }, 0);
+  }, 1000);
 }
 
 function TotalList({ rows }: { rows: CountedTotal[] }) {

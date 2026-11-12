@@ -99,8 +99,11 @@ describe("volunteer dashboard", () => {
   it("escapes commas and quotes and neutralises formula cells", () => {
     expect(toCsv([['Cafe, "North"']])).toBe('"Cafe, ""North"""\r\n');
     expect(csvCell("=1+1")).toBe("'=1+1");
+    expect(csvCell("=SUM(A1)")).toBe("'=SUM(A1)");
     expect(csvCell("+1")).toBe("'+1");
-    expect(csvCell("-1")).toBe("'-1");
+    expect(csvCell("-1")).toBe("-1");
+    expect(csvCell("-$3.00")).toBe("-$3.00");
+    expect(csvCell("-1+cmd")).toBe("'-1+cmd");
     expect(csvCell("@sum")).toBe("'@sum");
     expect(csvCell("\t=1+1")).toBe("'\t=1+1");
     expect(csvCell("\r=1+1")).toBe("\"'\r=1+1\"");
@@ -112,5 +115,11 @@ describe("volunteer dashboard", () => {
     expect(reconciliation).toContain(",Paid\r\n");
     expect(reconciliation).toContain(",Short\r\n");
     expect(reconciliation).toContain(",Credit\r\n");
+    const dunlow = reconcileHouseholds(createSeed(NOW)).find((row) => row.householdId === "hh-dunlow");
+    expect(dunlow?.status).toBe("short");
+    const difference = formatPrice(dunlow?.differenceCents ?? 0);
+    expect(difference).toBe("-$3.50");
+    const dunlowRow = reconciliation.split("\r\n").find((row) => row.startsWith("Dunlow,"));
+    expect(dunlowRow?.split(",")[3]).toBe(difference);
   });
 });
