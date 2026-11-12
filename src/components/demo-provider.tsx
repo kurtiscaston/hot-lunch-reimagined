@@ -130,12 +130,41 @@ function readClient(): DemoState {
 }
 
 function writableDemo(now: Date): DemoState | null {
+  if (cached && !canPersistDemo(cached.seededOn, now)) {
+    notify();
+    return null;
+  }
   const current = readClient();
   if (!canPersistDemo(current.seededOn, now)) {
     notify();
     return null;
   }
   return current;
+}
+
+export function setHouseholdId(householdId: string) {
+  const now = new Date(readClock());
+  if (!writableDemo(now)) {
+    return;
+  }
+  const changed = storeUpdate(now, (state) => {
+    if (!state.snapshot.households.some((household) => household.id === householdId)) {
+      return state;
+    }
+    if (state.householdId === householdId) {
+      return state;
+    }
+    return { ...state, householdId };
+  });
+  if (changed) {
+    notify();
+  }
+}
+
+/** Installs the in-memory demo so tests can call the same setters as the screen. */
+export function installCachedDemo(state: DemoState | null): void {
+  cached = state;
+  lastWriteOk = true;
 }
 
 function notify() {
@@ -160,24 +189,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
     return {
       state,
-      setHouseholdId(householdId: string) {
-        const now = new Date(readClock());
-        if (!writableDemo(now)) {
-          return;
-        }
-        const changed = storeUpdate(now, (state) => {
-          if (!state.snapshot.households.some((household) => household.id === householdId)) {
-            return state;
-          }
-          if (state.householdId === householdId) {
-            return state;
-          }
-          return { ...state, householdId };
-        });
-        if (changed) {
-          notify();
-        }
-      },
+      setHouseholdId,
       setReminderChannel(channel: Channel, enabled: boolean) {
         const now = new Date(readClock());
         const current = writableDemo(now);

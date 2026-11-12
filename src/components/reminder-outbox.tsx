@@ -78,9 +78,12 @@ export function ReminderOutbox() {
                   const household = snapshot.households.find(
                     (entry) => entry.id === reminder.householdId,
                   );
+                  const day = snapshot.menuDays.find((entry) => entry.id === reminder.menuDayId);
+                  const dayLabel = day ? formatServiceDate(day.serviceDate) : "Menu day";
                   return (
                     <li key={reminder.id}>
-                      {household?.name ?? "Household"} · {channelLabel(reminder.channel)}. Archived.
+                      {household?.name ?? "Household"} · {channelLabel(reminder.channel)} · {dayLabel}.
+                      Archived.
                     </li>
                   );
                 })}

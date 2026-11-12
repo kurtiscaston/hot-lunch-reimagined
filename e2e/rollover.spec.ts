@@ -29,6 +29,7 @@ test("a school year rolls forward after a preview", async ({ page }) => {
   await expectTouchTarget(apply);
   await apply.click();
   await expect(page.getByText("2027–2028 is the current school year.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Preview rollover" })).toBeDisabled();
   await expect(page.getByText("Archived from the previous school year")).toBeVisible();
 
   await page.goto("/");
