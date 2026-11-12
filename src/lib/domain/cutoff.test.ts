@@ -41,12 +41,38 @@ describe("ordering cutoff", () => {
       /Invalid cutoff/,
     );
   });
+
+  it("rejects loose Date.parse strings that are not a timezone-qualified ISO-8601 instant", () => {
+    const now = new Date(cutoffMs);
+    for (const loose of [
+      "November 12, 2026",
+      "2026/11/12",
+      "2026-11-12",
+      "2026-11-12 15:00:00",
+      "2026-11-12T15:00:00",
+      "2026-02-31T00:00:00.000Z",
+      "2026-11-12T24:00:00.000Z",
+      "2026-11-12T15:00:00.000+99:99",
+      "2026-11-12T15:00:00.1234Z",
+    ]) {
+      expect(() => isOrderingLocked(loose, now), loose).toThrow(/Invalid cutoff/);
+    }
+  });
+
+  it("accepts ISO-8601 instants with Z or a numeric offset", () => {
+    expect(remainingMs("2026-11-12T15:00:00Z", new Date(cutoffMs))).toBe(0);
+    expect(remainingMs("2026-11-12T15:00:00.1Z", new Date(cutoffMs))).toBe(100);
+    expect(remainingMs("2026-11-12T07:00:00.000-08:00", new Date(cutoffMs))).toBe(0);
+  });
 });
 
 describe("countdown text", () => {
   it("says ordering is locked when no time remains", () => {
     expect(formatRemaining(0)).toBe("Ordering locked");
     expect(formatRemaining(-1)).toBe("Ordering locked");
+    expect(formatRemaining(Number.NaN)).toBe("Ordering locked");
+    expect(formatRemaining(Number.POSITIVE_INFINITY)).toBe("Ordering locked");
+    expect(formatRemaining(Number.NEGATIVE_INFINITY)).toBe("Ordering locked");
   });
 
   it("formats hours, and includes days once a day remains", () => {
