@@ -5,6 +5,7 @@ import { createContext, useContext, useMemo, useSyncExternalStore, type ReactNod
 import { readClock, subscribeClock } from "@/lib/clock";
 import { type PlaceOrderInput, type PlaceOrderResult } from "@/lib/domain/place-order";
 import { queueDueReminders, reminderWindowOpen, setReminderOptIn } from "@/lib/domain/reminders";
+import { applyRollover as applySchoolYearRollover } from "@/lib/domain/rollover";
 import { zonedDate } from "@/lib/domain/time-zone";
 import type { Channel } from "@/lib/domain/types";
 import {
@@ -25,6 +26,7 @@ type DemoApi = {
   setHouseholdId: (householdId: string) => void;
   setReminderChannel: (channel: Channel, enabled: boolean) => void;
   placeOrder: (input: PlaceOrderInput) => PlaceOrderResult;
+  applyRollover: () => void;
   reset: () => void;
 };
 
@@ -212,6 +214,22 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           order: outcome.order,
         };
         return result;
+      },
+      applyRollover() {
+        const now = new Date(readClock());
+        if (!writableDemo(now)) {
+          return;
+        }
+        const changed = storeUpdate(now, (state) => {
+          const snapshot = applySchoolYearRollover(state.snapshot, now);
+          if (snapshot === state.snapshot) {
+            return state;
+          }
+          return { ...state, snapshot };
+        });
+        if (changed) {
+          notify();
+        }
       },
       reset() {
         const now = new Date(readClock());

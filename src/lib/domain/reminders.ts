@@ -17,7 +17,7 @@ export function reminderBody(householdName: string, dayLabel: string, channel: C
 export function reminderWindowOpen(snapshot: LunchSnapshot, now: Date): boolean {
   const nowMs = now.getTime();
   return snapshot.menuDays.some((day) => {
-    if (day.itemIds.length === 0) {
+    if (day.archived || day.itemIds.length === 0) {
       return false;
     }
     const cutoff = Date.parse(day.cutoffAt);
@@ -42,6 +42,7 @@ export function dueReminders(snapshot: LunchSnapshot, now: Date): Reminder[] {
   for (const day of snapshot.menuDays) {
     const cutoff = Date.parse(day.cutoffAt);
     if (
+      day.archived ||
       day.itemIds.length === 0 ||
       Number.isNaN(cutoff) ||
       cutoff <= nowMs ||
@@ -56,7 +57,8 @@ export function dueReminders(snapshot: LunchSnapshot, now: Date): Reminder[] {
       const missing = pupils.some(
         (pupil) =>
           !snapshot.orders.some(
-            (order) => order.studentId === pupil.id && order.menuDayId === day.id,
+            (order) =>
+              !order.archived && order.studentId === pupil.id && order.menuDayId === day.id,
           ),
       );
       if (!missing) {

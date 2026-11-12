@@ -96,7 +96,9 @@ export function OrderingBoard() {
   const students = snapshot.students.filter(
     (pupil) => pupil.householdId === household.id && !pupil.archived,
   );
-  const days = [...snapshot.menuDays].sort((a, b) => a.cutoffAt.localeCompare(b.cutoffAt));
+  const days = snapshot.menuDays
+    .filter((day) => !day.archived)
+    .sort((a, b) => a.cutoffAt.localeCompare(b.cutoffAt));
 
   return (
     <div className="flex flex-col gap-6">
@@ -229,11 +231,15 @@ function MenuDayCard({
     missedLine.current?.focus();
   }, []);
   const dayHasOrder = students.some((pupil) =>
-    orders.some((order) => order.studentId === pupil.id && order.menuDayId === day.id),
+    orders.some(
+      (order) => !order.archived && order.studentId === pupil.id && order.menuDayId === day.id,
+    ),
   );
   const missedStudents = students.filter(
     (pupil) =>
-      !orders.some((order) => order.studentId === pupil.id && order.menuDayId === day.id),
+      !orders.some(
+        (order) => !order.archived && order.studentId === pupil.id && order.menuDayId === day.id,
+      ),
   );
   const showMissed = status === "locked" && missedStudents.length > 0;
   const missedNames = missedStudents
@@ -288,7 +294,10 @@ function MenuDayCard({
                     onMissedFocus={onMissedFocus}
                     onPlace={onPlace}
                     order={orders.find(
-                      (entry) => entry.studentId === pupil.id && entry.menuDayId === day.id,
+                      (entry) =>
+                        !entry.archived &&
+                        entry.studentId === pupil.id &&
+                        entry.menuDayId === day.id,
                     )}
                     student={pupil}
                   />

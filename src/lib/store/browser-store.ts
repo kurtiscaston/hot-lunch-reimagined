@@ -65,6 +65,10 @@ function isStudent(value: unknown): boolean {
   );
 }
 
+function optionalFlag(value: Record<string, unknown>, key: string): boolean {
+  return !(key in value) || typeof value[key] === "boolean";
+}
+
 function isMenuDay(value: unknown): boolean {
   if (!isRecord(value) || !Array.isArray(value.itemIds)) {
     return false;
@@ -77,7 +81,8 @@ function isMenuDay(value: unknown): boolean {
     isString(value.cutoffAt) &&
     isIsoInstant(value.cutoffAt) &&
     isString(value.vendorId) &&
-    value.itemIds.every(isString)
+    value.itemIds.every(isString) &&
+    optionalFlag(value, "archived")
   );
 }
 
@@ -129,7 +134,8 @@ function isReminder(value: unknown): boolean {
     isString(value.createdAt) &&
     isIsoInstant(value.createdAt) &&
     isString(value.body) &&
-    value.status === "mock-sent"
+    value.status === "mock-sent" &&
+    optionalFlag(value, "archived")
   );
 }
 
@@ -143,7 +149,8 @@ function isOrder(value: unknown): boolean {
     typeof value.priceCents === "number" &&
     Number.isFinite(value.priceCents) &&
     isString(value.placedAt) &&
-    isIsoInstant(value.placedAt)
+    isIsoInstant(value.placedAt) &&
+    optionalFlag(value, "archived")
   );
 }
 
