@@ -30,6 +30,7 @@ import {
   type PlaceOrderResult,
 } from "@/lib/domain/place-order";
 import type { MenuDay, MenuItem, Order, Student } from "@/lib/domain/types";
+import { selectedMealId } from "@/lib/domain/selected-meal";
 import { formatCutoff, formatPrice, formatServiceDate } from "@/lib/domain/time-zone";
 
 let clockMs = 0;
@@ -257,10 +258,14 @@ function StudentOrder({
   }, [order]);
   const locked = isOrderingLocked(day.cutoffAt, now);
   const studentHeadingId = `${day.id}-${student.id}-name`;
+  const mealId = selectedMealId(
+    itemId,
+    items.map((item) => item.id),
+  );
   const orderedItem = order
     ? items.find((item) => item.id === order.itemId)
     : undefined;
-  const selected = items.find((item) => item.id === itemId);
+  const selected = items.find((item) => item.id === mealId);
 
   return (
     <section
@@ -289,7 +294,7 @@ function StudentOrder({
             const result = onPlace({
               studentId: student.id,
               menuDayId: day.id,
-              itemId,
+              itemId: mealId,
             });
             if (!result.ok) {
               setError(placeOrderMessage(result.reason));
@@ -309,7 +314,7 @@ function StudentOrder({
               }}
               size="lg"
               spacing={2}
-              value={[itemId]}
+              value={[mealId]}
               variant="outline"
             >
               {items.map((item) => (
@@ -328,7 +333,7 @@ function StudentOrder({
             ) : null}
             {error ? <FieldError>{error}</FieldError> : null}
           </FieldSet>
-          <Button className="w-full" disabled={!itemId} size="lg" type="submit">
+          <Button className="w-full" disabled={!mealId} size="lg" type="submit">
             Place order for {student.firstName}
           </Button>
         </form>

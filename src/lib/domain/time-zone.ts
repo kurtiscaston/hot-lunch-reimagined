@@ -1,12 +1,51 @@
 export const LUNCH_TIME_ZONE = "America/Vancouver";
 
-function datePart(instant: Date, type: "year" | "month" | "day", timeZone: string): string {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(instant);
+const calendarFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: LUNCH_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+const offsetFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: LUNCH_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
+
+const serviceDateFormatter = new Intl.DateTimeFormat("en-US", {
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+const cutoffFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: LUNCH_TIME_ZONE,
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  timeZoneName: "short",
+});
+
+const priceFormatter = new Intl.NumberFormat("en-CA", {
+  style: "currency",
+  currency: "CAD",
+});
+
+function partValue(
+  parts: Intl.DateTimeFormatPart[],
+  type: Intl.DateTimeFormatPartTypes,
+  timeZone: string,
+): string {
   const found = parts.find((entry) => entry.type === type);
   if (!found) {
     throw new Error(`Missing ${type} for ${timeZone}`);
@@ -14,33 +53,59 @@ function datePart(instant: Date, type: "year" | "month" | "day", timeZone: strin
   return found.value;
 }
 
+/** Year, month, and day from one formatToParts call. Month is 1–12. */
+export function zonedCalendar(
+  instant: Date,
+  timeZone = LUNCH_TIME_ZONE,
+): { year: number; month: number; day: number } {
+  const formatter =
+    timeZone === LUNCH_TIME_ZONE
+      ? calendarFormatter
+      : new Intl.DateTimeFormat("en-US", {
+          timeZone,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        });
+  const parts = formatter.formatToParts(instant);
+  return {
+    year: Number(partValue(parts, "year", timeZone)),
+    month: Number(partValue(parts, "month", timeZone)),
+    day: Number(partValue(parts, "day", timeZone)),
+  };
+}
+
 /** YYYY-MM-DD for an instant's calendar day in the lunch time zone. */
 export function zonedDate(instant: Date, timeZone = LUNCH_TIME_ZONE): string {
-  const year = datePart(instant, "year", timeZone);
-  const month = datePart(instant, "month", timeZone);
-  const day = datePart(instant, "day", timeZone);
-  return `${year}-${month}-${day}`;
+  const { year, month, day } = zonedCalendar(instant, timeZone);
+  const monthText = String(month).padStart(2, "0");
+  const dayText = String(day).padStart(2, "0");
+  return `${year}-${monthText}-${dayText}`;
 }
 
 export function zonedYear(instant: Date, timeZone = LUNCH_TIME_ZONE): number {
-  return Number(datePart(instant, "year", timeZone));
+  return zonedCalendar(instant, timeZone).year;
 }
 
 export function zonedMonth(instant: Date, timeZone = LUNCH_TIME_ZONE): number {
-  return Number(datePart(instant, "month", timeZone));
+  return zonedCalendar(instant, timeZone).month;
 }
 
 function zoneOffsetMs(instant: Date, timeZone: string): number {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(instant);
+  const formatter =
+    timeZone === LUNCH_TIME_ZONE
+      ? offsetFormatter
+      : new Intl.DateTimeFormat("en-US", {
+          timeZone,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hourCycle: "h23",
+        });
+  const parts = formatter.formatToParts(instant);
   const read = (type: Intl.DateTimeFormatPartTypes) => {
     const found = parts.find((entry) => entry.type === type);
     if (!found) {
@@ -129,13 +194,7 @@ export function formatServiceDate(serviceDate: string): string {
   }
   const { year, month, day } = parts;
   const noonUtc = new Date(Date.UTC(year, month - 1, day, 12));
-  return new Intl.DateTimeFormat("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(noonUtc);
+  return serviceDateFormatter.format(noonUtc);
 }
 
 export function formatCutoff(cutoffAt: string): string {
@@ -143,20 +202,9 @@ export function formatCutoff(cutoffAt: string): string {
   if (Number.isNaN(instant.getTime())) {
     throw new Error(`Invalid cutoff: ${cutoffAt}`);
   }
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: LUNCH_TIME_ZONE,
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZoneName: "short",
-  }).format(instant);
+  return cutoffFormatter.format(instant);
 }
 
 export function formatPrice(cents: number): string {
-  return new Intl.NumberFormat("en-CA", {
-    style: "currency",
-    currency: "CAD",
-  }).format(cents / 100);
+  return priceFormatter.format(cents / 100);
 }

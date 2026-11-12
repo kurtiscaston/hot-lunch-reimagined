@@ -7,10 +7,11 @@ test("a household can order before the cutoff and not after it", async ({ page }
   ).toBeVisible();
   await expect(page.getByLabel("Household")).toBeVisible();
 
-  const lockedDay = page.locator("article").filter({
+  const lockedDays = page.locator("article").filter({
     has: page.getByText("Locked", { exact: true }),
   });
-  await expect(lockedDay).toBeVisible();
+  await expect(lockedDays).toHaveCount(1);
+  const lockedDay = lockedDays.first();
   await expect(lockedDay.getByRole("button", { name: /Place order/ })).toHaveCount(0);
 
   await page.getByLabel("Household").selectOption({ label: "Brindle" });

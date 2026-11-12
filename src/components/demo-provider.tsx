@@ -10,6 +10,7 @@ import {
 import { zonedDate } from "@/lib/domain/time-zone";
 import {
   clearDemoState,
+  DEMO_STORAGE_KEY,
   loadDemoState,
   resolveDemoState,
   saveDemoState,
@@ -44,12 +45,21 @@ const memoryStorage: KeyValueStorage = {
 
 function subscribe(listener: () => void) {
   listeners.add(listener);
+  const onStorage = (event: StorageEvent) => {
+    if (event.key !== null && event.key !== DEMO_STORAGE_KEY) {
+      return;
+    }
+    cached = loadDemoState(browserStorage(), new Date());
+    listener();
+  };
+  window.addEventListener("storage", onStorage);
   const timer = window.setInterval(() => {
     if (cached && cached.seededOn !== zonedDate(new Date())) {
       listener();
     }
   }, 1000);
   return () => {
+    window.removeEventListener("storage", onStorage);
     window.clearInterval(timer);
     listeners.delete(listener);
   };
@@ -64,19 +74,11 @@ function browserStorage(): KeyValueStorage {
 }
 
 function readStored(now: Date): DemoState {
-  try {
-    return loadDemoState(browserStorage(), now);
-  } catch {
-    return loadDemoState(memoryStorage, now);
-  }
+  return loadDemoState(browserStorage(), now);
 }
 
 function writeStored(state: DemoState) {
-  try {
-    saveDemoState(browserStorage(), state);
-  } catch {
-    saveDemoState(memoryStorage, state);
-  }
+  saveDemoState(browserStorage(), state);
 }
 
 function readClient(): DemoState {
@@ -84,11 +86,7 @@ function readClient(): DemoState {
   if (cached && cached.seededOn === zonedDate(now)) {
     return cached;
   }
-  try {
-    cached = resolveDemoState(cached, now, browserStorage());
-  } catch {
-    cached = resolveDemoState(null, now, memoryStorage);
-  }
+  cached = resolveDemoState(cached, now, browserStorage());
   return cached;
 }
 
@@ -127,12 +125,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       },
       reset() {
         const current = readClient();
-        const storage = browserStorage();
-        try {
-          clearDemoState(storage);
-        } catch {
-          clearDemoState(memoryStorage);
-        }
+        clearDemoState(browserStorage());
         const fresh = readStored(new Date());
         const householdId = fresh.snapshot.households.some(
           (household) => household.id === current.householdId,
