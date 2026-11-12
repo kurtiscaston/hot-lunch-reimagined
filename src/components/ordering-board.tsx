@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { useDemo } from "@/components/demo-provider";
 import { Button } from "@/components/ui/button";
@@ -41,24 +48,7 @@ import { selectedMealId } from "@/lib/domain/selected-meal";
 import { shouldFocusMissedCutoff } from "@/lib/domain/missed-cutoff-focus";
 import { shouldFocusOrderedLine } from "@/lib/domain/ordered-focus";
 import { formatCutoff, formatPrice, formatServiceDate } from "@/lib/domain/time-zone";
-
-let clockMs = 0;
-
-function subscribeClock(listener: () => void) {
-  clockMs = Date.now();
-  const timer = window.setInterval(() => {
-    clockMs = Date.now();
-    listener();
-  }, 1000);
-  return () => window.clearInterval(timer);
-}
-
-function readClock(): number {
-  if (clockMs === 0) {
-    clockMs = Date.now();
-  }
-  return clockMs;
-}
+import { readClock, subscribeClock } from "@/lib/clock";
 
 function gradeLabel(grade: Student["grade"]): string {
   return grade === "K" ? "Kindergarten" : `Grade ${grade}`;
@@ -140,6 +130,30 @@ export function OrderingBoard() {
                 </FieldDescription>
               </Field>
             </FieldGroup>
+            <fieldset className="flex flex-col gap-2">
+              <legend className="text-sm font-medium">Reminders</legend>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Demo only. Nothing is emailed or texted.
+              </p>
+              <label className="flex min-h-11 items-center gap-3 text-sm">
+                <input
+                  checked={household.reminderOptIn.email}
+                  className="size-11 accent-primary"
+                  onChange={(event) => demo.setReminderChannel("email", event.target.checked)}
+                  type="checkbox"
+                />
+                Email before the cutoff
+              </label>
+              <label className="flex min-h-11 items-center gap-3 text-sm">
+                <input
+                  checked={household.reminderOptIn.sms}
+                  className="size-11 accent-primary"
+                  onChange={(event) => demo.setReminderChannel("sms", event.target.checked)}
+                  type="checkbox"
+                />
+                Text before the cutoff
+              </label>
+            </fieldset>
             {household.preferences.dietaryNotes ? (
               <p className="text-sm leading-relaxed">
                 Preferences carried with this household: {household.preferences.dietaryNotes}
@@ -210,9 +224,21 @@ function MenuDayCard({
     }
   }
   const headingId = `${day.id}-heading`;
+  const missedLine = useRef<HTMLParagraphElement>(null);
+  const onMissedFocus = useCallback(() => {
+    missedLine.current?.focus();
+  }, []);
   const dayHasOrder = students.some((pupil) =>
     orders.some((order) => order.studentId === pupil.id && order.menuDayId === day.id),
   );
+  const missedStudents = students.filter(
+    (pupil) =>
+      !orders.some((order) => order.studentId === pupil.id && order.menuDayId === day.id),
+  );
+  const showMissed = status === "locked" && missedStudents.length > 0;
+  const missedNames = missedStudents
+    .map((pupil) => `${pupil.firstName} ${pupil.lastName}`)
+    .join(", ");
 
   return (
     <article aria-labelledby={headingId} className="flex flex-col" id={day.id}>
@@ -240,12 +266,22 @@ function MenuDayCard({
               <p>No meals listed.</p>
             ) : (
               <div className="flex flex-col gap-4">
+                {showMissed ? (
+                  <p
+                    className="rounded-md focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                    ref={missedLine}
+                    tabIndex={-1}
+                  >
+                    {missedNames} missed the cutoff.
+                  </p>
+                ) : null}
                 {students.map((pupil) => (
                   <StudentOrder
                     day={day}
                     items={items}
                     key={pupil.id}
                     now={now}
+                    onMissedFocus={onMissedFocus}
                     onPlace={onPlace}
                     order={orders.find(
                       (entry) => entry.studentId === pupil.id && entry.menuDayId === day.id,
@@ -269,6 +305,7 @@ function StudentOrder({
   order,
   now,
   onPlace,
+  onMissedFocus,
 }: {
   student: Student;
   day: MenuDay;
@@ -276,12 +313,12 @@ function StudentOrder({
   order: Order | undefined;
   now: Date;
   onPlace: (input: PlaceOrderInput) => PlaceOrderResult;
+  onMissedFocus: () => void;
 }) {
   const firstItem = items[0];
   const [itemId, setItemId] = useState(firstItem?.id ?? "");
   const [error, setError] = useState<string | null>(null);
   const orderedLine = useRef<HTMLParagraphElement>(null);
-  const missedLine = useRef<HTMLParagraphElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const justSubmitted = useRef(false);
   const pendingMissedFocus = useRef(false);
@@ -298,7 +335,6 @@ function StudentOrder({
   // Hold the form for one extra render after the cutoff while focus is still
   // inside it, so the layout effect can see that focus before the form unmounts.
   const showForm = Boolean(firstItem) && !order && (!locked || focusInside);
-  const showMissed = locked && !order && !focusInside;
 
   useLayoutEffect(() => {
     if (!locked || order || !focusInside || !formRef.current) {
@@ -309,15 +345,11 @@ function StudentOrder({
       document.activeElement,
     );
     setFocusInside(false);
-  }, [locked, order, focusInside]);
-
-  useLayoutEffect(() => {
-    if (!showMissed || !pendingMissedFocus.current) {
-      return;
+    if (pendingMissedFocus.current) {
+      onMissedFocus();
+      pendingMissedFocus.current = false;
     }
-    missedLine.current?.focus();
-    pendingMissedFocus.current = false;
-  }, [showMissed]);
+  }, [locked, order, focusInside, onMissedFocus]);
   const studentHeadingId = `${day.id}-${student.id}-name`;
   const mealId = selectedMealId(
     itemId,
@@ -344,15 +376,6 @@ function StudentOrder({
           tabIndex={-1}
         >
           Ordered: {orderedItem?.name ?? "Meal"} · {formatPrice(order.priceCents)}
-        </p>
-      ) : null}
-      {showMissed ? (
-        <p
-          className="rounded-md focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-          ref={missedLine}
-          tabIndex={-1}
-        >
-          Missed the cutoff.
         </p>
       ) : null}
       {showForm ? (

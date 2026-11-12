@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { ReminderOutbox } from "@/components/reminder-outbox";
 import {
   Card,
   CardContent,
@@ -38,6 +39,7 @@ export default function AdminPage() {
           </p>
         </CardContent>
       </Card>
+      <ReminderOutbox />
     </div>
   );
 }

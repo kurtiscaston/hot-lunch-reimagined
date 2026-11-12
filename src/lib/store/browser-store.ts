@@ -293,7 +293,8 @@ export function loadDemoState(storage: KeyValueStorage, now: Date): DemoState {
   return parsed.state;
 }
 
-export function saveDemoState(storage: KeyValueStorage, state: DemoState): void {
+/** Returns false when the browser refuses the write. The visit keeps `state` in memory. */
+export function saveDemoState(storage: KeyValueStorage, state: DemoState): boolean {
   const stored: StoredDemo = {
     schemaVersion: 1,
     seededOn: state.seededOn,
@@ -302,8 +303,9 @@ export function saveDemoState(storage: KeyValueStorage, state: DemoState): void 
   };
   try {
     storage.setItem(DEMO_STORAGE_KEY, JSON.stringify(stored));
+    return true;
   } catch {
-    // The visit keeps `state` in memory when the browser refuses the write.
+    return false;
   }
 }
 
