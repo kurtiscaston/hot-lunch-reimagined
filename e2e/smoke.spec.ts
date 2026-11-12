@@ -2,37 +2,105 @@ import { expect, type Locator, test } from "@playwright/test";
 
 const disclaimer = "Unofficial concept, not affiliated with any school or PAC";
 
+type Rgb = { r: number; g: number; b: number };
+
 function channel(value: number): number {
   const scaled = value / 255;
   return scaled <= 0.03928 ? scaled / 12.92 : ((scaled + 0.055) / 1.055) ** 2.4;
 }
 
-function luminance(color: string): number {
-  const match = color.match(/rgba?\((\d+(?:\.\d+)?),\s*(\d+(?:\.\d+)?),\s*(\d+(?:\.\d+)?)/);
-  const red = match?.[1];
-  const green = match?.[2];
-  const blue = match?.[3];
-  if (red === undefined || green === undefined || blue === undefined) {
-    throw new Error(`Unparsed color ${color}`);
-  }
-  return (
-    0.2126 * channel(Number(red)) +
-    0.7152 * channel(Number(green)) +
-    0.0722 * channel(Number(blue))
-  );
+function luminance(color: Rgb): number {
+  return 0.2126 * channel(color.r) + 0.7152 * channel(color.g) + 0.0722 * channel(color.b);
 }
 
-function contrastRatio(foreground: string, background: string): number {
+function contrastRatio(foreground: Rgb, background: Rgb): number {
   const lighter = Math.max(luminance(foreground), luminance(background));
   const darker = Math.min(luminance(foreground), luminance(background));
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-async function paint(locator: Locator): Promise<{ color: string; backgroundColor: string }> {
-  return locator.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return { color: style.color, backgroundColor: style.backgroundColor };
-  });
+/** Read sRGB by painting computed colors, including oklch(), through a canvas. */
+function readElementColors(element: Element): { color: Rgb; backgroundColor: Rgb } {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1;
+  canvas.height = 1;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) {
+    throw new Error("Canvas is unavailable");
+  }
+  const ctx = context;
+
+  function pixel(): { r: number; g: number; b: number; a: number } {
+    const data = ctx.getImageData(0, 0, 1, 1).data;
+    const r = data[0];
+    const g = data[1];
+    const b = data[2];
+    const a = data[3];
+    if (r === undefined || g === undefined || b === undefined || a === undefined) {
+      throw new Error("Canvas returned no pixel");
+    }
+    return { r, g, b, a };
+  }
+
+  function paint(color: string) {
+    const sentinel = "#010203";
+    ctx.fillStyle = sentinel;
+    ctx.fillStyle = color;
+    if (ctx.fillStyle === sentinel) {
+      throw new Error(`Browser rejected color ${color}`);
+    }
+    ctx.fillRect(0, 0, 1, 1);
+  }
+
+  function sample(color: string) {
+    ctx.clearRect(0, 0, 1, 1);
+    paint(color);
+    return pixel();
+  }
+
+  const layers: string[] = [];
+  let node: Element | null = element;
+  while (node) {
+    const background = getComputedStyle(node).backgroundColor;
+    layers.push(background);
+    if (sample(background).a === 255) {
+      break;
+    }
+    node = node.parentElement;
+  }
+
+  ctx.clearRect(0, 0, 1, 1);
+  for (const background of layers.reverse()) {
+    paint(background);
+  }
+  const backgroundPixel = pixel();
+  if (backgroundPixel.a !== 255) {
+    throw new Error(`Background is still translucent (alpha ${backgroundPixel.a / 255})`);
+  }
+
+  const foreground = sample(getComputedStyle(element).color);
+  const alpha = foreground.a / 255;
+  const color =
+    foreground.a === 255
+      ? { r: foreground.r, g: foreground.g, b: foreground.b }
+      : {
+          r: Math.round(foreground.r * alpha + backgroundPixel.r * (1 - alpha)),
+          g: Math.round(foreground.g * alpha + backgroundPixel.g * (1 - alpha)),
+          b: Math.round(foreground.b * alpha + backgroundPixel.b * (1 - alpha)),
+        };
+
+  return {
+    color,
+    backgroundColor: {
+      r: backgroundPixel.r,
+      g: backgroundPixel.g,
+      b: backgroundPixel.b,
+    },
+  };
+}
+
+function paint(locator: Locator): Promise<{ color: Rgb; backgroundColor: Rgb }> {
+  return locator.evaluate(readElementColors);
 }
 
 async function expectTouchTarget(locator: Locator) {
@@ -57,6 +125,47 @@ test("volunteer page loads and shows the disclaimer", async ({ page }) => {
     page.getByRole("heading", { level: 1, name: "Volunteer workspace" }),
   ).toBeVisible();
   await expect(page.getByText(disclaimer)).toBeVisible();
+});
+
+test("contrast sampling composites alpha and accepts oklch", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    const host = document.createElement("div");
+    host.id = "contrast-probe-host";
+    host.style.backgroundColor = "rgb(255, 255, 255)";
+
+    const transparent = document.createElement("div");
+    transparent.id = "contrast-probe-transparent";
+    transparent.style.backgroundColor = "rgba(0, 0, 0, 0)";
+    transparent.textContent = "transparent";
+
+    const veil = document.createElement("div");
+    veil.id = "contrast-probe-veil";
+    veil.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
+    veil.textContent = "veil";
+
+    const oklch = document.createElement("div");
+    oklch.id = "contrast-probe-oklch";
+    oklch.style.backgroundColor = "oklch(0.7 0.17 150)";
+    oklch.style.color = "oklch(0.25 0.03 150)";
+    oklch.textContent = "oklch";
+
+    host.append(transparent, veil, oklch);
+    document.body.append(host);
+  });
+
+  const transparent = await page.locator("#contrast-probe-transparent").evaluate(readElementColors);
+  expect(transparent.backgroundColor).toEqual({ r: 255, g: 255, b: 255 });
+
+  const veil = await page.locator("#contrast-probe-veil").evaluate(readElementColors);
+  expect(veil.backgroundColor.r).toBeGreaterThan(100);
+  expect(veil.backgroundColor.r).toBeLessThan(160);
+  expect(veil.backgroundColor.g).toBe(veil.backgroundColor.r);
+  expect(veil.backgroundColor.b).toBe(veil.backgroundColor.r);
+
+  const oklch = await page.locator("#contrast-probe-oklch").evaluate(readElementColors);
+  expect(oklch.backgroundColor.g).toBeGreaterThan(oklch.backgroundColor.r);
+  expect(oklch.backgroundColor.g).toBeGreaterThan(80);
 });
 
 test("demo role switcher moves between parent and volunteer", async ({ page }) => {

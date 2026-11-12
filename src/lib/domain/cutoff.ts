@@ -41,11 +41,8 @@ function instantMs(cutoffAt: string): number {
     throw new Error(`Invalid cutoff: ${cutoffAt}`);
   }
 
-  const ms = Date.parse(cutoffAt);
-  if (Number.isNaN(ms)) {
-    throw new Error(`Invalid cutoff: ${cutoffAt}`);
-  }
-  return ms;
+  // Year, calendar fields, and offset are already in range, so this cannot be NaN.
+  return Date.parse(cutoffAt);
 }
 
 /** Ordering locks at the cutoff instant and stays locked after it. */

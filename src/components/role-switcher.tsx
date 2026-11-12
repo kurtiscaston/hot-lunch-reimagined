@@ -16,7 +16,7 @@ const ROLES = [
 }>;
 
 function roleFromPath(pathname: string): DemoRole {
-  return pathname.startsWith("/admin") ? "volunteer" : "parent";
+  return pathname === "/admin" || pathname.startsWith("/admin/") ? "volunteer" : "parent";
 }
 
 export function RoleSwitcher() {
