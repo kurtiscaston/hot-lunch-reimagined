@@ -46,7 +46,7 @@ export interface MenuItem {
 export interface MenuDay {
   id: string;
   label: string;
-  /** UTC calendar day the meal is served, YYYY-MM-DD. */
+  /** Calendar day the meal is served, YYYY-MM-DD in America/Vancouver. */
   serviceDate: string;
   /** ISO-8601 instant after which ordering is locked. */
   cutoffAt: string;

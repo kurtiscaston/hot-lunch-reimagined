@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { menuDayStatus } from "@/lib/domain/cutoff";
 import { createSeed, MENU_DAY_IDS } from "@/lib/domain/seed";
+import { zonedDate } from "@/lib/domain/time-zone";
 import { GRADES, GRADUATING_GRADE, type LunchSnapshot, type MenuDay } from "@/lib/domain/types";
 import { SCHOOL_NAME } from "@/lib/site";
 
@@ -13,10 +14,6 @@ function byId<T extends { id: string }>(records: T[], id: string): T {
     throw new Error(`Missing ${id}`);
   }
   return found;
-}
-
-function utcDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
 }
 
 function expectedCents(snapshot: LunchSnapshot, householdId: string): number {
@@ -37,7 +34,7 @@ function receivedCents(snapshot: LunchSnapshot, householdId: string): number {
 }
 
 function isUpcoming(day: MenuDay, now: Date): boolean {
-  return day.serviceDate >= utcDate(now);
+  return day.serviceDate >= zonedDate(now);
 }
 
 describe("Maple Hollow seed", () => {
@@ -113,6 +110,7 @@ describe("Maple Hollow seed", () => {
     expect(new Set(serviceDates).size).toBe(serviceDates.length);
 
     for (const day of snapshot.menuDays) {
+      expect(day.serviceDate).toBe(zonedDate(new Date(day.cutoffAt)));
       expect(snapshot.vendors.some((vendor) => vendor.id === day.vendorId)).toBe(true);
       expect(day.itemIds.length).toBeGreaterThan(0);
       for (const itemId of day.itemIds) {
