@@ -53,6 +53,7 @@ describe("ordering cutoff", () => {
       "2026-02-31T00:00:00.000Z",
       "2026-11-12T24:00:00.000Z",
       "2026-11-12T15:00:00.000+99:99",
+      "2026-11-12T15:00:00.1234Z",
     ]) {
       expect(() => isOrderingLocked(loose, now), loose).toThrow(/Invalid cutoff/);
     }
@@ -60,6 +61,7 @@ describe("ordering cutoff", () => {
 
   it("accepts ISO-8601 instants with Z or a numeric offset", () => {
     expect(remainingMs("2026-11-12T15:00:00Z", new Date(cutoffMs))).toBe(0);
+    expect(remainingMs("2026-11-12T15:00:00.1Z", new Date(cutoffMs))).toBe(100);
     expect(remainingMs("2026-11-12T07:00:00.000-08:00", new Date(cutoffMs))).toBe(0);
   });
 });

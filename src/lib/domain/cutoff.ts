@@ -5,7 +5,7 @@ export type MenuDayStatus = "locked" | "imminent" | "open";
 
 /** Timezone-qualified ISO-8601 instant. Date-only and host-local strings are not instants. */
 const ISO_8601_INSTANT =
-  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,3})?(Z|[+-]\d{2}:\d{2})$/;
 
 function daysInMonth(year: number, month: number): number {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
@@ -23,7 +23,10 @@ function instantMs(cutoffAt: string): number {
   const hour = Number(match[4]);
   const minute = Number(match[5]);
   const second = Number(match[6]);
-  const offset = match[7] ?? "";
+  const offset = match[7];
+  if (offset === undefined) {
+    throw new Error(`Invalid cutoff: ${cutoffAt}`);
+  }
   const offsetHour = offset === "Z" ? 0 : Number(offset.slice(1, 3));
   const offsetMinute = offset === "Z" ? 0 : Number(offset.slice(4, 6));
 
@@ -41,8 +44,11 @@ function instantMs(cutoffAt: string): number {
     throw new Error(`Invalid cutoff: ${cutoffAt}`);
   }
 
-  // Year, calendar fields, and offset are already in range, so this cannot be NaN.
-  return Date.parse(cutoffAt);
+  const ms = Date.parse(cutoffAt);
+  if (Number.isNaN(ms)) {
+    throw new Error(`Invalid cutoff: ${cutoffAt}`);
+  }
+  return ms;
 }
 
 /** Ordering locks at the cutoff instant and stays locked after it. */

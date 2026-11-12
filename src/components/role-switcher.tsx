@@ -1,8 +1,9 @@
 "use client";
 
-import { cn } from "cn";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+
+import { cn } from "@/lib/utils";
 
 type DemoRole = "parent" | "volunteer";
 
@@ -39,10 +40,10 @@ export function RoleSwitcher() {
             <Link
               aria-current={current ? "page" : undefined}
               className={cn(
-                "inline-flex h-11 flex-1 items-center justify-center border px-4 text-sm font-medium focus-visible:z-10 focus-visible:ring-3 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none sm:min-w-11 sm:flex-none",
+                "relative inline-flex h-11 flex-1 items-center justify-center border px-4 text-sm font-medium focus-visible:z-20 focus-visible:ring-3 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none sm:min-w-11 sm:flex-none",
                 index === 0 ? "rounded-l-lg" : "-ml-px rounded-r-lg",
                 current
-                  ? "relative z-10 border-primary bg-primary text-primary-foreground"
+                  ? "z-10 border-primary bg-primary text-primary-foreground"
                   : "border-border bg-background text-foreground hover:bg-muted",
               )}
               href={entry.href}

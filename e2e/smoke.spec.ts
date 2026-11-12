@@ -99,7 +99,7 @@ function readElementColors(element: Element): { color: Rgb; backgroundColor: Rgb
   };
 }
 
-function paint(locator: Locator): Promise<{ color: Rgb; backgroundColor: Rgb }> {
+function readColors(locator: Locator): Promise<{ color: Rgb; backgroundColor: Rgb }> {
   return locator.evaluate(readElementColors);
 }
 
@@ -177,9 +177,10 @@ test("demo role switcher moves between parent and volunteer", async ({ page }) =
   await expectTouchTarget(parent);
   await expectTouchTarget(volunteer);
 
-  const selected = await paint(parent);
-  const unselected = await paint(volunteer);
+  const selected = await readColors(parent);
+  const unselected = await readColors(volunteer);
   expect(contrastRatio(selected.color, selected.backgroundColor)).toBeGreaterThanOrEqual(7);
+  // Guards that the selected fill is distinct from the unselected fill, not only that the label is readable.
   expect(
     contrastRatio(selected.backgroundColor, unselected.backgroundColor),
   ).toBeGreaterThanOrEqual(3);
