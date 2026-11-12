@@ -41,6 +41,16 @@ function gradeLabel(grade: Grade): string {
   return grade === "K" ? "Kindergarten" : `Grade ${grade}`;
 }
 
+export function statusLabel(status: BalanceStatus): string {
+  if (status === "paid") {
+    return "Paid";
+  }
+  if (status === "short") {
+    return "Short";
+  }
+  return "Credit";
+}
+
 /** Orders still in this school year, grouped by vendor. Archived orders are left out. */
 export function vendorTotals(snapshot: LunchSnapshot): CountedTotal[] {
   const totals = new Map<string, CountedTotal>();
@@ -69,16 +79,19 @@ export function vendorTotals(snapshot: LunchSnapshot): CountedTotal[] {
 export function dayTotals(snapshot: LunchSnapshot): CountedTotal[] {
   return snapshot.menuDays
     .filter((day) => !day.archived)
+    .sort(
+      (left, right) =>
+        left.serviceDate.localeCompare(right.serviceDate) || left.id.localeCompare(right.id),
+    )
     .map((day) => {
       const orders = activeOrders(snapshot).filter((order) => order.menuDayId === day.id);
       return {
         id: day.id,
         label: `${day.label} · ${formatServiceDate(day.serviceDate)}`,
-        count: orders.reduce((sum) => sum + 1, 0),
+        count: orders.length,
         cents: orders.reduce((sum, order) => sum + order.priceCents, 0),
       };
-    })
-    .sort((left, right) => left.label.localeCompare(right.label));
+    });
 }
 
 /** Paid minus owed. Archived orders and payments do not count. */
@@ -141,11 +154,13 @@ export function unorderedStudents(snapshot: LunchSnapshot, now: Date): Unordered
   return rows;
 }
 
+/** Spreadsheet apps treat a leading = + - or @ as a formula, including after a tab or CR. */
 export function csvCell(value: string): string {
-  if (/[",\r\n]/.test(value)) {
-    return `"${value.replaceAll('"', '""')}"`;
+  const safe = /^[\t\r]*[=+\-@]/.test(value) ? `'${value}` : value;
+  if (/[",\r\n]/.test(safe)) {
+    return `"${safe.replaceAll('"', '""')}"`;
   }
-  return value;
+  return safe;
 }
 
 export function toCsv(rows: readonly (readonly string[])[]): string {
@@ -191,7 +206,7 @@ export function reconciliationCsv(snapshot: LunchSnapshot): string {
       formatPrice(row.paidCents),
       formatPrice(row.owedCents),
       formatPrice(row.differenceCents),
-      row.status,
+      statusLabel(row.status),
     ]),
   ]);
 }

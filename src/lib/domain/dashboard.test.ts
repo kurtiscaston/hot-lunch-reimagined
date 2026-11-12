@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { dayTotals, ordersCsv, reconcileHouseholds, toCsv, unorderedStudents, vendorTotals } from "@/lib/domain/dashboard";
+import {
+  csvCell,
+  dayTotals,
+  ordersCsv,
+  reconciliationCsv,
+  reconcileHouseholds,
+  toCsv,
+  unorderedStudents,
+  vendorTotals,
+} from "@/lib/domain/dashboard";
 import { applyRollover } from "@/lib/domain/rollover";
 import { createSeed, MENU_DAY_IDS } from "@/lib/domain/seed";
 import { formatPrice } from "@/lib/domain/time-zone";
@@ -75,11 +84,33 @@ describe("volunteer dashboard", () => {
     expect(missing.some((row) => row.studentId === "stu-moss-hearthwell")).toBe(false);
   });
 
-  it("escapes commas and quotes in a CSV cell", () => {
+  it("orders menu days by service date", () => {
+    const snapshot = createSeed(NOW);
+    const byDate = snapshot.menuDays
+      .filter((day) => !day.archived)
+      .sort((left, right) => left.serviceDate.localeCompare(right.serviceDate))
+      .map((day) => day.id);
+    const totals = dayTotals(snapshot);
+    expect(totals.map((row) => row.id)).toEqual(byDate);
+    const labels = totals.map((row) => row.label);
+    expect(labels).not.toEqual([...labels].sort((left, right) => left.localeCompare(right)));
+  });
+
+  it("escapes commas and quotes and neutralises formula cells", () => {
     expect(toCsv([['Cafe, "North"']])).toBe('"Cafe, ""North"""\r\n');
+    expect(csvCell("=1+1")).toBe("'=1+1");
+    expect(csvCell("+1")).toBe("'+1");
+    expect(csvCell("-1")).toBe("'-1");
+    expect(csvCell("@sum")).toBe("'@sum");
+    expect(csvCell("\t=1+1")).toBe("'\t=1+1");
+    expect(csvCell("\r=1+1")).toBe("\"'\r=1+1\"");
     const csv = ordersCsv(createSeed(NOW));
     expect(csv.startsWith("Household,Student,Day,Vendor,Meal,Price,Placed at\r\n")).toBe(true);
     expect(csv).toContain("Brindle");
     expect(csv).toContain(formatPrice(700));
+    const reconciliation = reconciliationCsv(createSeed(NOW));
+    expect(reconciliation).toContain(",Paid\r\n");
+    expect(reconciliation).toContain(",Short\r\n");
+    expect(reconciliation).toContain(",Credit\r\n");
   });
 });

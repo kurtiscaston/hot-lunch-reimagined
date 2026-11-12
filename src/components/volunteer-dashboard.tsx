@@ -1,5 +1,7 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
+
 import { useDemo } from "@/components/demo-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,12 +12,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { readClock } from "@/lib/clock";
+import { readClock, subscribeClock } from "@/lib/clock";
 import {
   dayTotals,
   ordersCsv,
   reconciliationCsv,
   reconcileHouseholds,
+  statusLabel,
   unorderedStudents,
   vendorTotals,
   type BalanceStatus,
@@ -26,16 +29,6 @@ import { formatPrice } from "@/lib/domain/time-zone";
 
 function orderCount(count: number): string {
   return count === 1 ? "1 order" : `${count} orders`;
-}
-
-function statusLabel(status: BalanceStatus): string {
-  if (status === "paid") {
-    return "Paid";
-  }
-  if (status === "short") {
-    return "Short";
-  }
-  return "Credit";
 }
 
 function statusVariant(status: BalanceStatus): "default" | "secondary" | "destructive" {
@@ -54,8 +47,12 @@ function downloadCsv(filename: string, csv: string) {
   const link = document.createElement("a");
   link.href = url;
   link.download = filename;
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => {
+    link.remove();
+    URL.revokeObjectURL(url);
+  }, 0);
 }
 
 function TotalList({ rows }: { rows: CountedTotal[] }) {
@@ -79,19 +76,21 @@ function TotalList({ rows }: { rows: CountedTotal[] }) {
   );
 }
 
-function missingByDay(rows: UnorderedStudent[]): { id: string; label: string; names: string[] }[] {
-  const groups: { id: string; label: string; names: string[] }[] = [];
+function missingByDay(
+  rows: UnorderedStudent[],
+): { id: string; label: string; students: { id: string; label: string }[] }[] {
+  const groups: { id: string; label: string; students: { id: string; label: string }[] }[] = [];
   for (const row of rows) {
     const current = groups.find((group) => group.id === row.menuDayId);
-    const name = `${row.name}, ${row.gradeLabel}`;
+    const student = { id: row.studentId, label: `${row.name}, ${row.gradeLabel}` };
     if (current) {
-      current.names.push(name);
+      current.students.push(student);
       continue;
     }
     groups.push({
       id: row.menuDayId,
       label: `${row.dayLabel} · ${row.serviceDate}`,
-      names: [name],
+      students: [student],
     });
   }
   return groups;
@@ -99,12 +98,13 @@ function missingByDay(rows: UnorderedStudent[]): { id: string; label: string; na
 
 export function VolunteerDashboard() {
   const demo = useDemo();
-  if (!demo) {
+  const nowMs = useSyncExternalStore(subscribeClock, readClock, () => 0);
+  if (!demo || nowMs === 0) {
     return <p role="status">Loading demo data…</p>;
   }
 
   const { snapshot } = demo.state;
-  const now = new Date(readClock());
+  const now = new Date(nowMs);
   const vendors = vendorTotals(snapshot);
   const days = dayTotals(snapshot);
   const balances = reconcileHouseholds(snapshot);
@@ -186,8 +186,8 @@ export function VolunteerDashboard() {
                 <li key={day.id}>
                   <p className="font-medium">{day.label}</p>
                   <ul className="mt-1 flex flex-col gap-1">
-                    {day.names.map((name) => (
-                      <li key={name}>{name}</li>
+                    {day.students.map((student) => (
+                      <li key={student.id}>{student.label}</li>
                     ))}
                   </ul>
                 </li>

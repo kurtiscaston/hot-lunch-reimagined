@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { expect, type Locator, test } from "@playwright/test";
 
 import { reconcileHouseholds, vendorTotals } from "../src/lib/domain/dashboard";
+import { applyRollover } from "../src/lib/domain/rollover";
 import { createSeed } from "../src/lib/domain/seed";
 import { formatPrice } from "../src/lib/domain/time-zone";
 
@@ -18,6 +19,10 @@ async function expectTouchTarget(locator: Locator) {
 test("a volunteer can total orders, reconcile payments, and export CSV", async ({ page }) => {
   const now = new Date(FROZEN_AT);
   const snapshot = createSeed(now);
+  const rolled = applyRollover(snapshot, now);
+  expect(
+    rolled.orders.some((order) => order.archived && order.studentId === "stu-moss-hearthwell"),
+  ).toBe(true);
   const vendors = vendorTotals(snapshot);
   const balances = reconcileHouseholds(snapshot);
   const brindle = balances.find((row) => row.householdId === "hh-brindle");
@@ -41,7 +46,11 @@ test("a volunteer can total orders, reconcile payments, and export CSV", async (
   await expect(board.getByRole("heading", { name: "No order yet" })).toBeVisible();
   await expect(board.getByText("Ada Brindle, Kindergarten").first()).toBeVisible();
 
-  const exportOrders = board.getByRole("button", { name: "Export orders" });
+  await page.getByRole("button", { name: "Preview rollover" }).click();
+  await page.getByRole("button", { name: "Apply rollover" }).click();
+  await expect(page.getByText("2027–2028 is the current school year.")).toBeVisible();
+
+  const exportOrders = page.getByRole("button", { name: "Export orders" });
   await expectTouchTarget(exportOrders);
   const [download] = await Promise.all([
     page.waitForEvent("download"),
@@ -52,6 +61,5 @@ test("a volunteer can total orders, reconcile payments, and export CSV", async (
   expect(csvPath).toBeTruthy();
   const csv = readFileSync(csvPath ?? "", "utf8");
   expect(csv.startsWith("Household,Student,Day,Vendor,Meal,Price,Placed at\r\n")).toBe(true);
-  expect(csv).toContain("Brindle");
-  expect(csv).not.toContain("prior-");
+  expect(csv).not.toContain("Moss Hearthwell");
 });

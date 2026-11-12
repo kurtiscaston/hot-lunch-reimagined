@@ -161,7 +161,10 @@ export function setHouseholdId(householdId: string) {
   }
 }
 
-/** Installs the in-memory demo so tests can call the same setters as the screen. */
+/**
+ * @internal
+ * Installs the in-memory demo so tests can call the same setters as the screen.
+ */
 export function installCachedDemo(state: DemoState | null): void {
   cached = state;
   lastWriteOk = true;
