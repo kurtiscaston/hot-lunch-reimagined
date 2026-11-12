@@ -1,5 +1,6 @@
 import { menuDayStatus } from "@/lib/domain/cutoff";
 import { schoolYearLabel } from "@/lib/domain/school-year";
+import { LUNCH_TIME_ZONE, zonedDate } from "@/lib/domain/time-zone";
 import type {
   Household,
   LunchSnapshot,
@@ -21,10 +22,6 @@ export const MENU_DAY_IDS = {
   open: "day-open",
   later: "day-later",
 } as const;
-
-function utcDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
 
 function households(): Household[] {
   return [
@@ -170,12 +167,12 @@ function menuDay(
   const vendorItems = itemsForVendor(items, vendorId);
   const weekday = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
-    timeZone: "UTC",
+    timeZone: LUNCH_TIME_ZONE,
   }).format(cutoff);
   return {
     id,
     label: `${weekday} lunch`,
-    serviceDate: utcDate(cutoff),
+    serviceDate: zonedDate(cutoff),
     cutoffAt: cutoff.toISOString(),
     vendorId,
     itemIds: vendorItems.map((entry) => entry.id),
@@ -301,6 +298,7 @@ function paymentMethod(householdId: string): PaymentMethod {
 /**
  * Fictional Maple Hollow roster. Dates are relative to `now` so a locked day,
  * an imminent countdown, and open days exist whenever the demo is opened.
+ * Service dates are the America/Vancouver calendar day of each cutoff.
  */
 export function createSeed(now: Date): LunchSnapshot {
   const items = menuItems();

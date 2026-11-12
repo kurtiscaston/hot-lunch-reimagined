@@ -5,7 +5,7 @@ const disclaimer = "Unofficial concept, not affiliated with any school or PAC";
 test("home loads and shows the disclaimer", async ({ page }) => {
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { level: 1, name: "Hot lunch, run from a phone." }),
+    page.getByRole("heading", { level: 1, name: "Order lunch before the cutoff." }),
   ).toBeVisible();
   await expect(page.getByText(disclaimer)).toBeVisible();
   await expect(page.getByText("Demo only — not a sign-in")).toBeVisible();

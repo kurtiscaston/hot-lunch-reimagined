@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
+import { DemoProvider } from "@/components/demo-provider";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { PRODUCT_NAME, SCHOOL_NAME } from "@/lib/site";
@@ -32,11 +33,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-background text-foreground">
-        <SiteHeader />
-        <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
-          {children}
-        </main>
-        <SiteFooter />
+        <DemoProvider>
+          <SiteHeader />
+          <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
+            {children}
+          </main>
+          <SiteFooter />
+        </DemoProvider>
       </body>
     </html>
   );

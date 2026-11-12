@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ResetDemoButton } from "@/components/reset-demo-button";
 import { RoleSwitcher } from "@/components/role-switcher";
 import { PRODUCT_NAME, SCHOOL_NAME } from "@/lib/site";
 
@@ -24,7 +25,10 @@ export function SiteHeader() {
             {PRODUCT_NAME}
           </span>
         </Link>
-        <RoleSwitcher />
+        <div className="flex flex-col gap-3 sm:items-end">
+          <RoleSwitcher />
+          <ResetDemoButton />
+        </div>
       </div>
     </header>
   );
