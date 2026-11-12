@@ -122,6 +122,24 @@ describe("Maple Hollow seed", () => {
     }
   });
 
+  it("places every order at or before now", () => {
+    const hourMs = 60 * 60 * 1000;
+    for (const order of snapshot.orders) {
+      const day = byId(snapshot.menuDays, order.menuDayId);
+      const placedAt = Date.parse(order.placedAt);
+      expect(placedAt).toBeLessThanOrEqual(NOW.getTime());
+      expect(placedAt).toBe(
+        Math.min(Date.parse(day.cutoffAt) - 3 * hourMs, NOW.getTime() - hourMs),
+      );
+    }
+
+    const openOrder = snapshot.orders.find((order) => order.menuDayId === MENU_DAY_IDS.open);
+    if (!openOrder) {
+      throw new Error("Missing open-day order");
+    }
+    expect(Date.parse(openOrder.placedAt)).toBe(NOW.getTime() - hourMs);
+  });
+
   it("keeps orders inside the cutoff and prices them from the menu", () => {
     const seen = new Set<string>();
     for (const order of snapshot.orders) {

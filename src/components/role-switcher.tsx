@@ -1,18 +1,27 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { cn } from "@/lib/utils";
 
 type DemoRole = "parent" | "volunteer";
 
+const ROLES = [
+  { role: "parent", href: "/", label: "Parent" },
+  { role: "volunteer", href: "/admin", label: "Volunteer" },
+] as const satisfies ReadonlyArray<{
+  role: DemoRole;
+  href: string;
+  label: string;
+}>;
+
 function roleFromPath(pathname: string): DemoRole {
-  return pathname.startsWith("/admin") ? "volunteer" : "parent";
+  return pathname === "/admin" || pathname.startsWith("/admin/") ? "volunteer" : "parent";
 }
 
 export function RoleSwitcher() {
   const pathname = usePathname();
-  const router = useRouter();
   const role = roleFromPath(pathname);
 
   return (
@@ -20,29 +29,31 @@ export function RoleSwitcher() {
       <p id="demo-role-hint" className="text-xs font-medium text-muted-foreground">
         Demo only — not a sign-in
       </p>
-      <ToggleGroup
+      <nav
         aria-describedby="demo-role-hint"
         aria-label="Demo role"
-        className="w-full sm:w-fit"
-        onValueChange={(next) => {
-          const selected = next[0];
-          if (selected !== "parent" && selected !== "volunteer") {
-            return;
-          }
-          router.push(selected === "volunteer" ? "/admin" : "/");
-        }}
-        size="lg"
-        spacing={0}
-        value={[role]}
-        variant="outline"
+        className="flex w-full sm:w-fit"
       >
-        <ToggleGroupItem className="flex-1 sm:flex-none" value="parent">
-          Parent
-        </ToggleGroupItem>
-        <ToggleGroupItem className="flex-1 sm:flex-none" value="volunteer">
-          Volunteer
-        </ToggleGroupItem>
-      </ToggleGroup>
+        {ROLES.map((entry, index) => {
+          const current = entry.role === role;
+          return (
+            <Link
+              aria-current={current ? "page" : undefined}
+              className={cn(
+                "relative inline-flex h-11 flex-1 items-center justify-center border px-4 text-sm font-medium focus-visible:z-20 focus-visible:ring-3 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none sm:min-w-11 sm:flex-none",
+                index === 0 ? "rounded-l-lg" : "-ml-px rounded-r-lg",
+                current
+                  ? "z-10 border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-background text-foreground hover:bg-muted",
+              )}
+              href={entry.href}
+              key={entry.role}
+            >
+              {entry.label}
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }

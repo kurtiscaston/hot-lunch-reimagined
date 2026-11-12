@@ -183,6 +183,7 @@ function ordersFor(
   days: MenuDay[],
   roster: Student[],
   items: MenuItem[],
+  now: Date,
 ): Order[] {
   const itemLookup = new Map(items.map((entry) => [entry.id, entry]));
   const orders: Order[] = [];
@@ -201,7 +202,9 @@ function ordersFor(
       if (!menuItem) {
         throw new Error(`Unknown menu item ${itemId}`);
       }
-      const placedAt = new Date(Date.parse(day.cutoffAt) - 3 * HOUR_MS).toISOString();
+      const placedAt = new Date(
+        Math.min(Date.parse(day.cutoffAt) - 3 * HOUR_MS, now.getTime() - HOUR_MS),
+      ).toISOString();
       orders.push({
         id: `ord-${pupil.id}-${day.id}`,
         studentId: pupil.id,
@@ -302,6 +305,7 @@ function paymentMethod(householdId: string): PaymentMethod {
  */
 export function createSeed(now: Date): LunchSnapshot {
   const items = menuItems();
+  const rosterHouseholds = households();
   const days = [
     menuDay(MENU_DAY_IDS.locked, new Date(now.getTime() - 26 * HOUR_MS), "ven-birch", items),
     menuDay(MENU_DAY_IDS.imminent, new Date(now.getTime() + 90 * 60 * 1000), "ven-pebble", items),
@@ -309,19 +313,19 @@ export function createSeed(now: Date): LunchSnapshot {
     menuDay(MENU_DAY_IDS.later, new Date(now.getTime() + 96 * HOUR_MS), "ven-harbor", items),
   ];
   const roster = students();
-  const orders = ordersFor(days, roster, items);
+  const orders = ordersFor(days, roster, items, now);
 
   const snapshot: LunchSnapshot = {
     schoolName: SCHOOL_NAME,
     schoolYearLabel: schoolYearLabel(now),
     rolloverApplied: false,
-    households: households(),
+    households: rosterHouseholds,
     students: roster,
     vendors: vendors(),
     menuItems: items,
     menuDays: days,
     orders,
-    payments: paymentsFor(households(), roster, orders, now),
+    payments: paymentsFor(rosterHouseholds, roster, orders, now),
     reminders: [],
   };
 
