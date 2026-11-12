@@ -2,9 +2,11 @@
 
 import { createContext, useContext, useMemo, useSyncExternalStore, type ReactNode } from "react";
 
-import { type PlaceOrderInput, type PlaceOrderResult } from "@/lib/domain/place-order";
 import { readClock, subscribeClock } from "@/lib/clock";
+import { type PlaceOrderInput, type PlaceOrderResult } from "@/lib/domain/place-order";
+import { queueDueReminders, setReminderOptIn } from "@/lib/domain/reminders";
 import { zonedDate } from "@/lib/domain/time-zone";
+import type { Channel } from "@/lib/domain/types";
 import {
   clearDemoState,
   DEMO_STORAGE_KEY,
@@ -19,6 +21,7 @@ import { commitPlaceOrder } from "@/lib/store/commit-order";
 type DemoApi = {
   state: DemoState;
   setHouseholdId: (householdId: string) => void;
+  setReminderChannel: (channel: Channel, enabled: boolean) => void;
   placeOrder: (input: PlaceOrderInput) => PlaceOrderResult;
   reset: () => void;
 };
@@ -42,6 +45,19 @@ const memoryStorage: KeyValueStorage = {
   },
 };
 
+function queueCachedReminders(now: Date): boolean {
+  if (!cached || cached.seededOn !== zonedDate(now)) {
+    return false;
+  }
+  const snapshot = queueDueReminders(cached.snapshot, now);
+  if (snapshot === cached.snapshot) {
+    return false;
+  }
+  cached = { ...cached, snapshot };
+  lastWriteOk = saveDemoState(browserStorage(), cached);
+  return true;
+}
+
 function subscribe(listener: () => void) {
   listeners.add(listener);
   const onStorage = (event: StorageEvent) => {
@@ -54,10 +70,16 @@ function subscribe(listener: () => void) {
   };
   window.addEventListener("storage", onStorage);
   const stopClock = subscribeClock(() => {
-    if (cached && cached.seededOn !== zonedDate(new Date(readClock()))) {
+    const now = new Date(readClock());
+    if (cached && cached.seededOn !== zonedDate(now)) {
+      listener();
+      return;
+    }
+    if (queueCachedReminders(now)) {
       listener();
     }
   });
+  queueCachedReminders(new Date(readClock()));
   return () => {
     window.removeEventListener("storage", onStorage);
     stopClock();
@@ -114,6 +136,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           return;
         }
         publish({ ...current, householdId });
+      },
+      setReminderChannel(channel: Channel, enabled: boolean) {
+        const current = readClient();
+        const opted = setReminderOptIn(current.snapshot, current.householdId, channel, enabled);
+        const snapshot = queueDueReminders(opted, new Date());
+        publish({ ...current, snapshot });
       },
       placeOrder(input: PlaceOrderInput) {
         const outcome = commitPlaceOrder(browserStorage(), readClient(), input, new Date(), {

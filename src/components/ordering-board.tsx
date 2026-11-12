@@ -123,6 +123,30 @@ export function OrderingBoard() {
                 </FieldDescription>
               </Field>
             </FieldGroup>
+            <fieldset className="flex flex-col gap-2">
+              <legend className="text-sm font-medium">Reminders</legend>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Demo only. Nothing is emailed or texted.
+              </p>
+              <label className="flex min-h-11 items-center gap-3 text-sm">
+                <input
+                  checked={household.reminderOptIn.email}
+                  className="size-11 accent-primary"
+                  onChange={(event) => demo.setReminderChannel("email", event.target.checked)}
+                  type="checkbox"
+                />
+                Email before the cutoff
+              </label>
+              <label className="flex min-h-11 items-center gap-3 text-sm">
+                <input
+                  checked={household.reminderOptIn.sms}
+                  className="size-11 accent-primary"
+                  onChange={(event) => demo.setReminderChannel("sms", event.target.checked)}
+                  type="checkbox"
+                />
+                Text before the cutoff
+              </label>
+            </fieldset>
             {household.preferences.dietaryNotes ? (
               <p className="text-sm leading-relaxed">
                 Preferences carried with this household: {household.preferences.dietaryNotes}
