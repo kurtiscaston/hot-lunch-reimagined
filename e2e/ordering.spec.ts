@@ -8,6 +8,8 @@ async function expectTouchTarget(locator: Locator) {
 }
 
 test("a household can order before the cutoff and not after it", async ({ page }) => {
+  // Noon-ish Pacific Time. Frozen so a cutoff or Vancouver midnight cannot move mid-run.
+  await page.clock.setFixedTime("2026-11-12T20:00:00.000Z");
   await page.goto("/");
   await expect(
     page.getByText("Times shown in Pacific Time (America/Vancouver).", { exact: true }),

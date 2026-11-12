@@ -32,11 +32,13 @@ import {
 import type { MenuDay, MenuItem, Order, Student } from "@/lib/domain/types";
 import { selectedMealId } from "@/lib/domain/selected-meal";
 import { shouldFocusMissedCutoff } from "@/lib/domain/missed-cutoff-focus";
+import { shouldFocusOrderedLine } from "@/lib/domain/ordered-focus";
 import { formatCutoff, formatPrice, formatServiceDate } from "@/lib/domain/time-zone";
 
 let clockMs = 0;
 
 function subscribeClock(listener: () => void) {
+  clockMs = Date.now();
   const timer = window.setInterval(() => {
     clockMs = Date.now();
     listener();
@@ -252,17 +254,20 @@ function StudentOrder({
   const orderedLine = useRef<HTMLParagraphElement>(null);
   const missedLine = useRef<HTMLParagraphElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
-  const hadOrder = useRef(order !== undefined);
+  const justSubmitted = useRef(false);
   const pendingMissedFocus = useRef(false);
   const [focusInside, setFocusInside] = useState(false);
 
   useEffect(() => {
-    if (order && !hadOrder.current) {
-      orderedLine.current?.focus();
+    if (!shouldFocusOrderedLine(justSubmitted.current, order !== undefined)) {
+      return;
     }
-    hadOrder.current = order !== undefined;
+    orderedLine.current?.focus();
+    justSubmitted.current = false;
   }, [order]);
   const locked = isOrderingLocked(day.cutoffAt, now);
+  // Hold the form for one extra render after the cutoff while focus is still
+  // inside it, so the layout effect can see that focus before the form unmounts.
   const showForm = Boolean(firstItem) && !order && (!locked || focusInside);
   const showMissed = locked && !order && !focusInside;
 
@@ -335,12 +340,14 @@ function StudentOrder({
           ref={formRef}
           onSubmit={(event) => {
             event.preventDefault();
+            justSubmitted.current = true;
             const result = onPlace({
               studentId: student.id,
               menuDayId: day.id,
               itemId: mealId,
             });
             if (!result.ok) {
+              justSubmitted.current = false;
               setError(placeOrderMessage(result.reason));
             }
           }}
