@@ -189,12 +189,21 @@ export function formatServiceDate(serviceDate: string): string {
   return serviceDateFormatter.format(noonUtc);
 }
 
+/** Vancouver date and time for any instant, including when an order was placed. */
+export function formatDateTime(instant: string): string {
+  const date = new Date(instant);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`Invalid date: ${instant}`);
+  }
+  return cutoffFormatter.format(date);
+}
+
 export function formatCutoff(cutoffAt: string): string {
   const instant = new Date(cutoffAt);
   if (Number.isNaN(instant.getTime())) {
     throw new Error(`Invalid cutoff: ${cutoffAt}`);
   }
-  return cutoffFormatter.format(instant);
+  return formatDateTime(cutoffAt);
 }
 
 export function formatPrice(cents: number): string {

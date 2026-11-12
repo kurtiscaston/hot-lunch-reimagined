@@ -15,6 +15,7 @@ import {
 import { readClock, subscribeClock } from "@/lib/clock";
 import {
   dayTotals,
+  formatDifference,
   ordersCsv,
   reconciliationCsv,
   reconcileHouseholds,
@@ -165,7 +166,7 @@ export function VolunteerDashboard() {
                 </div>
                 <p className="text-sm leading-relaxed">
                   Paid {formatPrice(row.paidCents)} · Owed {formatPrice(row.owedCents)} · Difference{" "}
-                  {formatPrice(row.differenceCents)}
+                  {formatDifference(row.differenceCents)}
                 </p>
               </li>
             ))}

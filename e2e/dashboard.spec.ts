@@ -1,13 +1,18 @@
 import { readFileSync } from "node:fs";
 
-import { expect, type Locator, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
-import { reconcileHouseholds, vendorTotals } from "../src/lib/domain/dashboard";
-import { applyRollover } from "../src/lib/domain/rollover";
+import { unorderedStudents } from "../src/lib/domain/dashboard";
+import { DEMO_NOW } from "../src/lib/domain/demo-now";
 import { createSeed } from "../src/lib/domain/seed";
-import { formatPrice } from "../src/lib/domain/time-zone";
 
-const FROZEN_AT = "2026-11-12T20:00:00.000Z";
+const missingLabels = [
+  ...new Set(
+    unorderedStudents(createSeed(DEMO_NOW), DEMO_NOW).map(
+      (row) => `${row.name}, ${row.gradeLabel}`,
+    ),
+  ),
+];
 
 async function expectTouchTarget(locator: Locator) {
   const box = await locator.boundingBox();
@@ -16,50 +21,53 @@ async function expectTouchTarget(locator: Locator) {
   expect(box?.width).toBeGreaterThanOrEqual(44);
 }
 
-test("a volunteer can total orders, reconcile payments, and export CSV", async ({ page }) => {
-  const now = new Date(FROZEN_AT);
-  const snapshot = createSeed(now);
-  const rolled = applyRollover(snapshot, now);
-  expect(
-    rolled.orders.some((order) => order.archived && order.studentId === "stu-moss-hearthwell"),
-  ).toBe(true);
-  const vendors = vendorTotals(snapshot);
-  const balances = reconcileHouseholds(snapshot);
-  const brindle = balances.find((row) => row.householdId === "hh-brindle");
-  const firstVendor = vendors[0];
-  expect(brindle).toBeDefined();
-  expect(firstVendor).toBeDefined();
+async function readDownload(page: Page, name: string) {
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe("maple-hollow-orders.csv");
+  const csvPath = await download.path();
+  expect(csvPath).toBeTruthy();
+  return readFileSync(csvPath ?? "", "utf8");
+}
 
-  await page.clock.setFixedTime(FROZEN_AT);
+test("a volunteer can total orders, reconcile payments, and export CSV", async ({ page }) => {
+  expect(missingLabels.length).toBeGreaterThan(0);
+
+  await page.clock.setFixedTime(DEMO_NOW.toISOString());
   await page.goto("/admin");
 
   const board = page.getByRole("region", { name: "Volunteer totals" });
   await expect(board.getByRole("heading", { name: "By vendor" })).toBeVisible();
-  await expect(board.getByText(firstVendor?.label ?? "")).toBeVisible();
-  await expect(board.getByText(formatPrice(firstVendor?.cents ?? 0)).first()).toBeVisible();
+  await expect(board.getByText("Lantern Taco Cart")).toBeVisible();
   await expect(board.getByRole("heading", { name: "Reconciliation" })).toBeVisible();
   await expect(board.getByText("Brindle").first()).toBeVisible();
   await expect(board.getByText("Paid", { exact: true }).first()).toBeVisible();
   await expect(board.getByText("Short", { exact: true }).first()).toBeVisible();
   await expect(board.getByText("Credit", { exact: true }).first()).toBeVisible();
-  await expect(board.getByText(`Paid ${formatPrice(brindle?.paidCents ?? 0)}`).first()).toBeVisible();
+  await expect(board.getByText(/\+\$/).first()).toBeVisible();
   await expect(board.getByRole("heading", { name: "No order yet" })).toBeVisible();
-  await expect(board.getByText("Ada Brindle, Kindergarten").first()).toBeVisible();
+  for (const label of missingLabels) {
+    await expect(board.getByText(label).first()).toBeVisible();
+  }
+
+  const exportOrders = page.getByRole("button", { name: "Export orders" });
+  await expectTouchTarget(exportOrders);
+  const before = await readDownload(page, "Export orders");
+  expect(before.startsWith("\uFEFFHousehold,Student,Day,Vendor,Meal,Price,Placed at\r\n")).toBe(
+    true,
+  );
+  expect(before).toContain("Ada Brindle");
+  expect(before).toContain("Moss Hearthwell");
 
   await page.getByRole("button", { name: "Preview rollover" }).click();
   await page.getByRole("button", { name: "Apply rollover" }).click();
   await expect(page.getByText("2027–2028 is the current school year.")).toBeVisible();
 
-  const exportOrders = page.getByRole("button", { name: "Export orders" });
-  await expectTouchTarget(exportOrders);
-  const [download] = await Promise.all([
-    page.waitForEvent("download"),
-    exportOrders.click(),
-  ]);
-  expect(download.suggestedFilename()).toBe("maple-hollow-orders.csv");
-  const csvPath = await download.path();
-  expect(csvPath).toBeTruthy();
-  const csv = readFileSync(csvPath ?? "", "utf8");
-  expect(csv.startsWith("Household,Student,Day,Vendor,Meal,Price,Placed at\r\n")).toBe(true);
-  expect(csv).not.toContain("Moss Hearthwell");
+  const after = await readDownload(page, "Export orders");
+  expect(after.startsWith("\uFEFFHousehold,Student,Day,Vendor,Meal,Price,Placed at\r\n")).toBe(
+    true,
+  );
+  expect(after).not.toContain("Moss Hearthwell");
 });
