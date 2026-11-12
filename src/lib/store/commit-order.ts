@@ -12,7 +12,7 @@ export type CommitPlaceOrderResult =
   | { ok: true; state: DemoState; order: Order; saved: boolean }
   | { ok: false; reason: Extract<PlaceOrderResult, { ok: false }>["reason"] };
 
-export interface CommitPlaceOrderOptions {
+export interface CommitOptions {
   /** Storage is behind the in-memory board because the previous save failed. */
   lastWriteFailed?: boolean;
 }
@@ -43,7 +43,7 @@ export function commitPlaceOrder(
   fallback: DemoState,
   input: PlaceOrderInput,
   now: Date,
-  options?: CommitPlaceOrderOptions,
+  options?: CommitOptions,
 ): CommitPlaceOrderResult {
   const lastWriteFailed = options?.lastWriteFailed === true;
   const base = readLatestDemoState(storage, fallback, now, lastWriteFailed);

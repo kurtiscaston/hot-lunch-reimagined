@@ -4,7 +4,7 @@ import { createContext, useContext, useMemo, useSyncExternalStore, type ReactNod
 
 import { readClock, subscribeClock } from "@/lib/clock";
 import { type PlaceOrderInput, type PlaceOrderResult } from "@/lib/domain/place-order";
-import { queueDueReminders, setReminderOptIn } from "@/lib/domain/reminders";
+import { queueDueReminders, reminderWindowOpen, setReminderOptIn } from "@/lib/domain/reminders";
 import { zonedDate } from "@/lib/domain/time-zone";
 import type { Channel } from "@/lib/domain/types";
 import {
@@ -18,6 +18,7 @@ import {
 } from "@/lib/store/browser-store";
 import { commitPlaceOrder } from "@/lib/store/commit-order";
 import { commitStoredUpdate } from "@/lib/store/commit-stored";
+import { canPersistDemo } from "@/lib/store/demo-write";
 
 type DemoApi = {
   state: DemoState;
@@ -80,7 +81,7 @@ function subscribe(listener: () => void) {
     if (event.key !== null && event.key !== DEMO_STORAGE_KEY) {
       return;
     }
-    cached = loadDemoState(browserStorage(), new Date());
+    cached = loadDemoState(browserStorage(), new Date(readClock()));
     lastWriteOk = true;
     listener();
   };
@@ -91,11 +92,13 @@ function subscribe(listener: () => void) {
       listener();
       return;
     }
-    if (queueCachedReminders(now)) {
+    if (cached && reminderWindowOpen(cached.snapshot, now) && queueCachedReminders(now)) {
       listener();
     }
   });
-  queueCachedReminders(new Date(readClock()));
+  if (queueCachedReminders(new Date(readClock()))) {
+    listener();
+  }
   return () => {
     window.removeEventListener("storage", onStorage);
     stopClock();
@@ -116,12 +119,21 @@ function readStored(now: Date): DemoState {
 }
 
 function readClient(): DemoState {
-  const now = new Date();
+  const now = new Date(readClock());
   if (cached && cached.seededOn === zonedDate(now)) {
     return cached;
   }
   cached = resolveDemoState(cached, now, browserStorage());
   return cached;
+}
+
+function writableDemo(now: Date): DemoState | null {
+  const current = readClient();
+  if (!canPersistDemo(current.seededOn, now)) {
+    notify();
+    return null;
+  }
+  return current;
 }
 
 function notify() {
@@ -147,7 +159,11 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     return {
       state,
       setHouseholdId(householdId: string) {
-        const changed = storeUpdate(new Date(readClock()), (state) => {
+        const now = new Date(readClock());
+        if (!writableDemo(now)) {
+          return;
+        }
+        const changed = storeUpdate(now, (state) => {
           if (!state.snapshot.households.some((household) => household.id === householdId)) {
             return state;
           }
@@ -161,8 +177,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         }
       },
       setReminderChannel(channel: Channel, enabled: boolean) {
-        const householdId = readClient().householdId;
         const now = new Date(readClock());
+        const current = writableDemo(now);
+        if (!current) {
+          return;
+        }
+        const householdId = current.householdId;
         const changed = storeUpdate(now, (state) => {
           const opted = setReminderOptIn(state.snapshot, householdId, channel, enabled);
           const snapshot = queueDueReminders(opted, now);
@@ -176,7 +196,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         }
       },
       placeOrder(input: PlaceOrderInput) {
-        const outcome = commitPlaceOrder(browserStorage(), readClient(), input, new Date(), {
+        const now = new Date(readClock());
+        const outcome = commitPlaceOrder(browserStorage(), readClient(), input, now, {
           lastWriteFailed: !lastWriteOk,
         });
         if (!outcome.ok) {
@@ -193,9 +214,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         return result;
       },
       reset() {
+        const now = new Date(readClock());
         const current = readClient();
         clearDemoState(browserStorage());
-        const fresh = readStored(new Date());
+        const fresh = readStored(now);
         const householdId = fresh.snapshot.households.some(
           (household) => household.id === current.householdId,
         )

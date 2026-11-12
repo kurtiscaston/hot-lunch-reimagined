@@ -1,5 +1,5 @@
 import { saveDemoState, type DemoState, type KeyValueStorage } from "./browser-store";
-import { readLatestDemoState, type CommitPlaceOrderOptions } from "./commit-order";
+import { readLatestDemoState, type CommitOptions } from "./commit-order";
 
 export interface CommitStoredUpdate {
   state: DemoState;
@@ -20,7 +20,7 @@ export function commitStoredUpdate(
   fallback: DemoState,
   now: Date,
   change: (state: DemoState) => DemoState,
-  options?: CommitPlaceOrderOptions,
+  options?: CommitOptions,
 ): CommitStoredUpdate {
   const lastWriteFailed = options?.lastWriteFailed === true;
   const base = readLatestDemoState(storage, fallback, now, lastWriteFailed);

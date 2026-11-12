@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { dueReminders, queueDueReminders, setReminderOptIn } from "@/lib/domain/reminders";
+import {
+  dueReminders,
+  queueDueReminders,
+  reminderWindowOpen,
+  setReminderOptIn,
+} from "@/lib/domain/reminders";
 import { createSeed, MENU_DAY_IDS } from "@/lib/domain/seed";
 
 const NOW = new Date("2026-11-12T15:00:00.000Z");
@@ -21,6 +26,17 @@ describe("mock reminders", () => {
     expect(due.some((reminder) => reminder.householdId === "hh-dunlow")).toBe(false);
     expect(due.some((reminder) => reminder.menuDayId === MENU_DAY_IDS.locked)).toBe(false);
     expect(due.some((reminder) => reminder.menuDayId === MENU_DAY_IDS.open)).toBe(false);
+  });
+
+  it("opens the reminder window only while a cutoff is inside the lead", () => {
+    const snapshot = createSeed(NOW);
+    expect(reminderWindowOpen(snapshot, NOW)).toBe(true);
+    const later = new Date(NOW.getTime() + 3 * 60 * 60 * 1000);
+    const openOnly = {
+      ...snapshot,
+      menuDays: snapshot.menuDays.filter((day) => day.id === MENU_DAY_IDS.open),
+    };
+    expect(reminderWindowOpen(openOnly, later)).toBe(false);
   });
 
   it("skips a day that has no meals", () => {

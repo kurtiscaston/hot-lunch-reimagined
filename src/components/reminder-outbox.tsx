@@ -31,10 +31,8 @@ export function ReminderOutbox() {
     <section aria-labelledby="mock-outbox-heading">
       <Card>
         <CardHeader>
-          <CardTitle>
-            <h2 className="text-base font-medium" id="mock-outbox-heading">
-              Mock outbox
-            </h2>
+          <CardTitle heading="h2" id="mock-outbox-heading">
+            Mock outbox
           </CardTitle>
           <CardDescription>
             Recorded in this browser before each cutoff. No email or text was sent.

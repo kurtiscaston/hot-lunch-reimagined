@@ -102,9 +102,7 @@ export function OrderingBoard() {
     <div className="flex flex-col gap-6">
       <Card>
         <CardHeader>
-          <CardTitle>
-            <h2 className="text-base font-medium">{household.name}</h2>
-          </CardTitle>
+          <CardTitle heading="h2">{household.name}</CardTitle>
           <CardDescription>Demo household. Not a sign-in.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -132,11 +130,12 @@ export function OrderingBoard() {
             </FieldGroup>
             <fieldset className="flex flex-col gap-2">
               <legend className="text-sm font-medium">Reminders</legend>
-              <p className="text-sm leading-relaxed text-muted-foreground">
+              <p className="text-sm leading-relaxed text-muted-foreground" id="reminder-demo-note">
                 Demo only. Nothing is emailed or texted.
               </p>
               <label className="flex min-h-11 items-center gap-3 text-sm">
                 <input
+                  aria-describedby="reminder-demo-note"
                   checked={household.reminderOptIn.email}
                   className="size-11 accent-primary"
                   onChange={(event) => demo.setReminderChannel("email", event.target.checked)}
@@ -146,6 +145,7 @@ export function OrderingBoard() {
               </label>
               <label className="flex min-h-11 items-center gap-3 text-sm">
                 <input
+                  aria-describedby="reminder-demo-note"
                   checked={household.reminderOptIn.sms}
                   className="size-11 accent-primary"
                   onChange={(event) => demo.setReminderChannel("sms", event.target.checked)}
@@ -244,10 +244,8 @@ function MenuDayCard({
     <article aria-labelledby={headingId} className="flex flex-col" id={day.id}>
       <Card>
         <CardHeader>
-          <CardTitle>
-            <h2 className="text-base font-medium" id={headingId}>
-              {dayLabel}
-            </h2>
+          <CardTitle heading="h2" id={headingId}>
+            {dayLabel}
           </CardTitle>
           <CardDescription>
             {vendorName}. Cutoff {formatCutoff(day.cutoffAt)}.
@@ -269,6 +267,7 @@ function MenuDayCard({
                 {showMissed ? (
                   <p
                     className="rounded-md focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                    id={`${day.id}-missed`}
                     ref={missedLine}
                     tabIndex={-1}
                   >
@@ -280,6 +279,11 @@ function MenuDayCard({
                     day={day}
                     items={items}
                     key={pupil.id}
+                    missedDescriptionId={
+                      showMissed && missedStudents.some((missed) => missed.id === pupil.id)
+                        ? `${day.id}-missed`
+                        : undefined
+                    }
                     now={now}
                     onMissedFocus={onMissedFocus}
                     onPlace={onPlace}
@@ -306,6 +310,7 @@ function StudentOrder({
   now,
   onPlace,
   onMissedFocus,
+  missedDescriptionId,
 }: {
   student: Student;
   day: MenuDay;
@@ -314,6 +319,7 @@ function StudentOrder({
   now: Date;
   onPlace: (input: PlaceOrderInput) => PlaceOrderResult;
   onMissedFocus: () => void;
+  missedDescriptionId?: string;
 }) {
   const firstItem = items[0];
   const [itemId, setItemId] = useState(firstItem?.id ?? "");
@@ -362,6 +368,7 @@ function StudentOrder({
 
   return (
     <section
+      aria-describedby={missedDescriptionId}
       aria-labelledby={studentHeadingId}
       className="flex flex-col gap-3 border-t border-border pt-4"
     >
@@ -377,6 +384,9 @@ function StudentOrder({
         >
           Ordered: {orderedItem?.name ?? "Meal"} · {formatPrice(order.priceCents)}
         </p>
+      ) : null}
+      {missedDescriptionId && !showForm ? (
+        <p className="text-sm text-muted-foreground">No order.</p>
       ) : null}
       {showForm ? (
         <form
