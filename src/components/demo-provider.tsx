@@ -162,8 +162,8 @@ export function setHouseholdId(householdId: string) {
 }
 
 /**
- * @internal
- * Installs the in-memory demo so tests can call the same setters as the screen.
+ * @internal Test-only seam. The app never calls this.
+ * Replaces the in-memory demo so a unit test can call the same setters as the screen.
  */
 export function installCachedDemo(state: DemoState | null): void {
   cached = state;

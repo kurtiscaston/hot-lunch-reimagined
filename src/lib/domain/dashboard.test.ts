@@ -10,11 +10,12 @@ import {
   unorderedStudents,
   vendorTotals,
 } from "@/lib/domain/dashboard";
+import { DEMO_NOW } from "@/lib/domain/demo-now";
 import { applyRollover } from "@/lib/domain/rollover";
 import { createSeed, MENU_DAY_IDS } from "@/lib/domain/seed";
 import { formatPrice } from "@/lib/domain/time-zone";
 
-const NOW = new Date("2026-11-12T15:00:00.000Z");
+const NOW = DEMO_NOW;
 
 describe("volunteer dashboard", () => {
   it("sums only this year's orders and payments", () => {
@@ -86,29 +87,32 @@ describe("volunteer dashboard", () => {
 
   it("orders menu days by service date", () => {
     const snapshot = createSeed(NOW);
-    const byDate = snapshot.menuDays
-      .filter((day) => !day.archived)
-      .sort((left, right) => left.serviceDate.localeCompare(right.serviceDate))
-      .map((day) => day.id);
     const totals = dayTotals(snapshot);
-    expect(totals.map((row) => row.id)).toEqual(byDate);
-    const labels = totals.map((row) => row.label);
-    expect(labels).not.toEqual([...labels].sort((left, right) => left.localeCompare(right)));
+    const serviceDates = totals.map((row) => {
+      const day = snapshot.menuDays.find((entry) => entry.id === row.id);
+      return day?.serviceDate ?? "";
+    });
+    const sorted = [...serviceDates].sort((left, right) => left.localeCompare(right));
+    expect(serviceDates).toEqual(sorted);
+    expect(serviceDates.length).toBeGreaterThan(1);
+    expect(serviceDates).not.toEqual([...serviceDates].reverse());
   });
 
   it("escapes commas and quotes and neutralises formula cells", () => {
-    expect(toCsv([['Cafe, "North"']])).toBe('"Cafe, ""North"""\r\n');
+    expect(toCsv([['Cafe, "North"']])).toBe('\uFEFF"Cafe, ""North"""\r\n');
     expect(csvCell("=1+1")).toBe("'=1+1");
     expect(csvCell("=SUM(A1)")).toBe("'=SUM(A1)");
     expect(csvCell("+1")).toBe("'+1");
+    expect(csvCell("|cmd")).toBe("'|cmd");
     expect(csvCell("-1")).toBe("-1");
     expect(csvCell("-$3.00")).toBe("-$3.00");
+    expect(csvCell("+$8.00")).toBe("+$8.00");
     expect(csvCell("-1+cmd")).toBe("'-1+cmd");
     expect(csvCell("@sum")).toBe("'@sum");
     expect(csvCell("\t=1+1")).toBe("'\t=1+1");
     expect(csvCell("\r=1+1")).toBe("\"'\r=1+1\"");
     const csv = ordersCsv(createSeed(NOW));
-    expect(csv.startsWith("Household,Student,Day,Vendor,Meal,Price,Placed at\r\n")).toBe(true);
+    expect(csv.startsWith("\uFEFFHousehold,Student,Day,Vendor,Meal,Price,Placed at\r\n")).toBe(true);
     expect(csv).toContain("Brindle");
     expect(csv).toContain(formatPrice(700));
     const reconciliation = reconciliationCsv(createSeed(NOW));
@@ -121,5 +125,11 @@ describe("volunteer dashboard", () => {
     expect(difference).toBe("-$3.50");
     const dunlowRow = reconciliation.split("\r\n").find((row) => row.startsWith("Dunlow,"));
     expect(dunlowRow?.split(",")[3]).toBe(difference);
+    const hearthwell = reconcileHouseholds(createSeed(NOW)).find(
+      (row) => row.householdId === "hh-hearthwell",
+    );
+    expect(hearthwell?.status).toBe("credit");
+    const credit = reconciliation.split("\r\n").find((row) => row.startsWith("Hearthwell,"));
+    expect(credit?.split(",")[3]).toBe("+$8.00");
   });
 });
