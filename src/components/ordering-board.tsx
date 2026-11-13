@@ -302,7 +302,7 @@ function MenuDayCard({
         </div>
         {dayHasOrder ? (
           <button
-            aria-label="Print this page"
+            aria-label={`Print this page, ${day.label}, ${dayLabel}`}
             className={iconButton}
             onClick={() => window.print()}
             type="button"
