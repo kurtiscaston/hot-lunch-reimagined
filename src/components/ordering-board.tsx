@@ -302,7 +302,7 @@ function MenuDayCard({
         </div>
         {dayHasOrder ? (
           <button
-            aria-label={`Print ${day.label}`}
+            aria-label="Print this page"
             className={iconButton}
             onClick={() => window.print()}
             type="button"
@@ -480,15 +480,18 @@ function StudentOrder({
                 const on = item.id === mealId;
                 return (
                   <button
+                    aria-disabled={locked || undefined}
                     aria-pressed={on}
                     className={cn(
                       "flex min-h-11 items-center gap-3 rounded-[14px] border bg-white p-4 text-left",
                       on ? "border-2 border-brand bg-[#fffaf6] p-[15px]" : "border-line-strong",
                       locked && "border-dashed bg-fill-2 text-ink-3",
                     )}
-                    disabled={locked}
                     key={item.id}
                     onClick={() => {
+                      if (locked) {
+                        return;
+                      }
                       setItemId(item.id);
                       setError(null);
                     }}
