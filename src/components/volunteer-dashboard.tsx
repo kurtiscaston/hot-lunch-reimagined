@@ -150,7 +150,7 @@ function DashboardBody({
   const missingGroups = groupMissing(missing);
 
   return (
-    <section aria-label="Volunteer totals" className="flex flex-col gap-6" id="totals">
+    <section aria-label="Volunteer totals" className="flex scroll-mt-24 flex-col gap-6" id="totals">
       <div className="flex flex-col gap-4 rounded-[20px] bg-dark px-6 py-6 text-white md:flex-row md:items-center md:px-7">
         {next ? (
           <DateTile
@@ -165,7 +165,7 @@ function DashboardBody({
               ? `Next cutoff · ${next.label}${nextVendor ? ` · ${nextVendor.name}` : ""}`
               : "Next cutoff"}
           </p>
-          <p className="text-2xl leading-none font-extrabold tracking-tight whitespace-nowrap tabular-nums sm:text-[32px]">
+          <p className="text-2xl leading-tight font-extrabold tracking-tight tabular-nums sm:text-[32px]">
             {next ? `Closes in ${formatRemaining(remainingMs(next.cutoffAt, now))}` : "No cutoff is open"}
           </p>
           {next ? (
@@ -267,7 +267,7 @@ function DashboardBody({
         </article>
       </div>
 
-      <article className="rounded-[20px] border border-line bg-white p-6" id="payments">
+      <article className="scroll-mt-24 rounded-[20px] border border-line bg-white p-6" id="payments">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="text-xl font-bold">Reconciliation</h2>
@@ -329,7 +329,7 @@ function DashboardBody({
         </ul>
       </article>
 
-      <article className="rounded-[20px] border border-line bg-white p-6" id="missing">
+      <article className="scroll-mt-24 rounded-[20px] border border-line bg-white p-6" id="missing">
         <h2 className="text-xl font-bold">No order yet</h2>
         <p className="mt-1 text-sm text-ink-2">
           Active students missing a meal on a day that is still open.

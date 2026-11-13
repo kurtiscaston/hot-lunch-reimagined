@@ -211,6 +211,40 @@ test("disclaimer stays visible on a phone", async ({ page }) => {
   await expectTouchTarget(volunteer);
 });
 
+test("selected controls keep a visible focus ring", async ({ page }) => {
+  await page.goto("/orders?student=stu-ada-brindle");
+  const ada = page.getByRole("navigation", { name: "Student" }).getByRole("link", { name: "Ada" });
+  await expect(ada).toBeVisible();
+  await focusVisible(ada);
+  await expectVisibleRing(ada);
+
+  await page.goto("/admin#outbox");
+  const channel = page.getByRole("group", { name: "Channel" }).getByRole("button", { name: /^All / });
+  await expect(channel).toBeVisible();
+  await focusVisible(channel);
+  await expectVisibleRing(channel);
+});
+
+async function focusVisible(locator: Locator) {
+  await locator.evaluate((element) => {
+    if (!(element instanceof HTMLElement)) {
+      throw new Error("Expected an element");
+    }
+    const options: FocusOptions = { preventScroll: true };
+    Object.assign(options, { focusVisible: true });
+    element.focus(options);
+  });
+}
+
+async function expectVisibleRing(locator: Locator) {
+  const ring = await locator.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { outlineStyle: style.outlineStyle, outlineWidth: Number.parseFloat(style.outlineWidth) };
+  });
+  expect(ring.outlineStyle).not.toBe("none");
+  expect(ring.outlineWidth).toBeGreaterThanOrEqual(2);
+}
+
 test("unofficial concept labelling is visible on a phone", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const label = "Unofficial concept · Maple Hollow Elementary";

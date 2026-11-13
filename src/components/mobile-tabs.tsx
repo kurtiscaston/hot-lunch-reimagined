@@ -2,21 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 import { Calendar, CircleHelp, CreditCard, House, Inbox, Users } from "lucide-react";
 
+import { useHash } from "@/components/use-hash";
 import { cn } from "@/lib/utils";
-
-function useHash() {
-  const [hash, setHash] = useState("");
-  useEffect(() => {
-    const read = () => setHash(window.location.hash);
-    read();
-    window.addEventListener("hashchange", read);
-    return () => window.removeEventListener("hashchange", read);
-  }, []);
-  return hash;
-}
 
 function tabClass(active: boolean) {
   return cn(

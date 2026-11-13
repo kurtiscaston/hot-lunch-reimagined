@@ -4,6 +4,7 @@ import path from "node:path";
 const root = path.resolve(import.meta.dirname, "..");
 const staticDir = path.join(root, ".next", "static");
 
+// Token checks match the current minified CSS output, including selector shape.
 const required = [
   ".bg-brand{",
   ".text-ink{",

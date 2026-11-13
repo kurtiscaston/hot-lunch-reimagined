@@ -97,3 +97,27 @@ test("a household can order before the cutoff and not after it", async ({ page }
   await expect(adaAfterReset.getByRole("button", { name: "Place order for Ada" })).toBeVisible();
   await expect(adaAfterReset.getByText(/Ordered:/)).toHaveCount(0);
 });
+
+test("focus on a meal button moves to the missed cutoff when the day locks", async ({ page }) => {
+  const now = new Date(FROZEN_AT);
+  const seed = createSeed(now);
+  const imminent = seed.menuDays.find((day) => day.id === MENU_DAY_IDS.imminent);
+  const mealId = imminent?.itemIds[0];
+  const meal = seed.menuItems.find((item) => item.id === mealId);
+  if (!imminent || !meal) {
+    throw new Error("Seed is missing the imminent day or its first meal");
+  }
+
+  await page.clock.setFixedTime(FROZEN_AT);
+  await page.goto("/orders");
+  await page.getByLabel("Household", { exact: true }).selectOption({ label: "Brindle" });
+  const day = page.locator(`#${MENU_DAY_IDS.imminent}`);
+  const mealButton = day.getByRole("region", { name: "Ada Brindle" }).getByRole("button", { name: meal.name });
+  await mealButton.focus();
+  await expect(mealButton).toBeFocused();
+
+  await page.clock.setFixedTime(new Date(imminent.cutoffAt));
+  await page.clock.fastForward(1000);
+
+  await expect(day.getByText("Ada Brindle missed the cutoff.")).toBeFocused();
+});

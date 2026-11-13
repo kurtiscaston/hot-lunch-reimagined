@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 
 import { BrandMark } from "@/components/brand-mark";
 import { RoleSwitcher } from "@/components/role-switcher";
+import { useHash } from "@/components/use-hash";
 import { cn } from "@/lib/utils";
 
 const PARENT_LINKS = [
@@ -25,17 +25,6 @@ const VOLUNTEER_LINKS = [
   { href: "#outbox", label: "Outbox" },
   { href: "#year", label: "School year" },
 ] as const;
-
-function useHash() {
-  const [hash, setHash] = useState("");
-  useEffect(() => {
-    const read = () => setHash(window.location.hash);
-    read();
-    window.addEventListener("hashchange", read);
-    return () => window.removeEventListener("hashchange", read);
-  }, []);
-  return hash;
-}
 
 function navClass(active: boolean) {
   return cn(
@@ -57,7 +46,7 @@ export function SiteHeader() {
       >
         Skip to content
       </a>
-      <div className="mx-auto flex h-16 w-full max-w-[1280px] items-center gap-2 px-4 md:h-[72px] md:gap-4 md:px-8 lg:gap-8 lg:px-20">
+      <div className="mx-auto flex h-16 w-full max-w-[1280px] items-center gap-2 px-4 sm:h-auto sm:min-h-16 sm:py-2.5 md:min-h-[72px] md:gap-4 md:px-8 lg:gap-8 lg:px-20">
         <Link className="mr-auto min-w-0 rounded-xl" href={volunteer ? "/admin" : "/"}>
           <BrandMark />
         </Link>
@@ -89,9 +78,9 @@ export function SiteHeader() {
             </button>
           </nav>
         )}
-        <div className="flex shrink-0 flex-col items-end justify-center gap-0.5">
+        <div className="flex shrink-0 flex-col items-end justify-center gap-1">
           <p
-            className="sr-only text-right text-[11px] leading-none font-medium text-ink-2 sm:not-sr-only"
+            className="sr-only text-right text-[11px] leading-snug font-medium text-ink-2 sm:not-sr-only"
             id="demo-role-hint"
           >
             Demo only — not a sign-in

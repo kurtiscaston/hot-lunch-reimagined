@@ -33,7 +33,7 @@ export function ReminderOutbox() {
   const textCount = reminders.filter((reminder) => reminder.channel === "sms").length;
 
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(16rem,1fr)]" id="outbox">
+    <div className="grid scroll-mt-24 items-start gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(16rem,1fr)]" id="outbox">
       <section aria-labelledby="mock-outbox-heading" className="rounded-[20px] border border-line bg-white p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>

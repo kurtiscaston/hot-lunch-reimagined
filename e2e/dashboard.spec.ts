@@ -38,6 +38,13 @@ test("a volunteer can total orders, reconcile payments, and export CSV", async (
   await page.clock.setFixedTime(DEMO_NOW.toISOString());
   await page.goto("/admin");
 
+  for (const id of ["totals", "payments", "missing", "outbox", "year"]) {
+    const margin = await page.locator(`#${id}`).evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).scrollMarginTop),
+    );
+    expect(margin).toBeGreaterThanOrEqual(72);
+  }
+
   const board = page.getByRole("region", { name: "Volunteer totals" });
   await expect(board.getByRole("heading", { name: "By vendor" })).toBeVisible();
   await expect(board.getByText("Lantern Taco Cart")).toBeVisible();

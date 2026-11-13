@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* ".." is src/. The inline list is classes joined in ui-classes.ts and the tone maps. */
+/* ".." is src/. The scanner already finds these literal classes. The inline list is only a backup. */
 @source "..";
 @source inline("font-sans bg-brand bg-dark bg-fill bg-ok-bg bg-brand-tint border-line-strong border-white/30 text-ink text-ink-2 text-ink-3 text-ok text-brand-ink disabled:bg-fill disabled:text-ink-3 disabled:bg-white/40 disabled:text-white/50");
 
@@ -159,8 +159,8 @@
     @apply font-sans;
   }
   :focus-visible {
-    outline: 2px solid transparent;
-    box-shadow: 0 0 0 3px rgba(194, 65, 12, 0.35);
+    outline: 3px solid #c2410c;
+    outline-offset: 2px;
   }
 }
 
