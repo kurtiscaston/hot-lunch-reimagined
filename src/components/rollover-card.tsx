@@ -34,7 +34,7 @@ export function RolloverCard() {
   const ready = preview !== null && !preview.alreadyApplied && preview.toYear !== null;
 
   return (
-    <section aria-labelledby="rollover-heading" className="rounded-[20px] border border-line bg-white p-6" id="year">
+    <section aria-labelledby="rollover-heading" className="scroll-mt-24 rounded-[20px] border border-line bg-white p-6" id="year">
       <h2 className="text-xl font-bold" id="rollover-heading">
         School year
       </h2>
