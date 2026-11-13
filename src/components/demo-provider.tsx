@@ -23,11 +23,18 @@ import { canPersistDemo } from "@/lib/store/demo-write";
 
 type DemoApi = {
   state: DemoState;
+  persisted: boolean;
   setHouseholdId: (householdId: string) => void;
   setReminderChannel: (channel: Channel, enabled: boolean) => void;
   placeOrder: (input: PlaceOrderInput) => PlaceOrderResult;
   applyRollover: () => void;
   reset: () => void;
+  retrySave: () => void;
+};
+
+type ClientView = {
+  state: DemoState | null;
+  persisted: boolean;
 };
 
 const DemoContext = createContext<DemoApi | null>(null);
@@ -35,6 +42,16 @@ const DemoContext = createContext<DemoApi | null>(null);
 const listeners = new Set<() => void>();
 let cached: DemoState | null = null;
 let lastWriteOk = true;
+const SERVER_VIEW: ClientView = { state: null, persisted: true };
+let clientView: ClientView = SERVER_VIEW;
+
+function viewFor(state: DemoState | null): ClientView {
+  if (clientView.state === state && clientView.persisted === lastWriteOk) {
+    return clientView;
+  }
+  clientView = { state, persisted: lastWriteOk };
+  return clientView;
+}
 
 const memoryValues = new Map<string, string>();
 const memoryStorage: KeyValueStorage = {
@@ -120,13 +137,14 @@ function readStored(now: Date): DemoState {
   return loadDemoState(browserStorage(), now);
 }
 
-function readClient(): DemoState {
+function readClient(): ClientView {
   const now = new Date(readClock());
-  if (cached && cached.seededOn === zonedDate(now)) {
-    return cached;
-  }
-  cached = resolveDemoState(cached, now, browserStorage());
-  return cached;
+  const state =
+    cached && cached.seededOn === zonedDate(now)
+      ? cached
+      : resolveDemoState(cached, now, browserStorage());
+  cached = state;
+  return viewFor(state);
 }
 
 function writableDemo(now: Date): DemoState | null {
@@ -134,8 +152,8 @@ function writableDemo(now: Date): DemoState | null {
     notify();
     return null;
   }
-  const current = readClient();
-  if (!canPersistDemo(current.seededOn, now)) {
+  const current = readClient().state;
+  if (!current || !canPersistDemo(current.seededOn, now)) {
     notify();
     return null;
   }
@@ -168,6 +186,7 @@ export function setHouseholdId(householdId: string) {
 export function installCachedDemo(state: DemoState | null): void {
   cached = state;
   lastWriteOk = true;
+  clientView = { state, persisted: true };
 }
 
 function notify() {
@@ -183,7 +202,8 @@ function publish(next: DemoState) {
 }
 
 export function DemoProvider({ children }: { children: ReactNode }) {
-  const state = useSyncExternalStore(subscribe, readClient, () => null);
+  const view = useSyncExternalStore(subscribe, readClient, () => SERVER_VIEW);
+  const { state, persisted } = view;
 
   const api = useMemo<DemoApi | null>(() => {
     if (!state) {
@@ -192,6 +212,11 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
     return {
       state,
+      persisted,
+      retrySave() {
+        lastWriteOk = saveDemoState(browserStorage(), state);
+        notify();
+      },
       setHouseholdId,
       setReminderChannel(channel: Channel, enabled: boolean) {
         const now = new Date(readClock());
@@ -252,7 +277,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       },
       reset() {
         const now = new Date(readClock());
-        const current = readClient();
+        const current = readClient().state ?? readStored(now);
         clearDemoState(browserStorage());
         const fresh = readStored(now);
         const householdId = fresh.snapshot.households.some(
@@ -263,7 +288,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         publish({ ...fresh, householdId });
       },
     };
-  }, [state]);
+  }, [state, persisted]);
 
   return <DemoContext.Provider value={api}>{children}</DemoContext.Provider>;
 }
