@@ -103,7 +103,7 @@ export function dayTotals(snapshot: LunchSnapshot): CountedTotal[] {
     });
 }
 
-/** Paid minus owed. Archived orders and payments do not count. */
+/** Paid minus owed. Archived orders, payments, and students do not count. */
 export function reconcileHouseholds(snapshot: LunchSnapshot): HouseholdBalance[] {
   const orders = activeOrders(snapshot);
   const payments = activePayments(snapshot);
@@ -111,7 +111,7 @@ export function reconcileHouseholds(snapshot: LunchSnapshot): HouseholdBalance[]
     .map((household) => {
       const studentIds = new Set(
         snapshot.students
-          .filter((pupil) => pupil.householdId === household.id)
+          .filter((pupil) => pupil.householdId === household.id && !pupil.archived)
           .map((pupil) => pupil.id),
       );
       const owedCents = orders
