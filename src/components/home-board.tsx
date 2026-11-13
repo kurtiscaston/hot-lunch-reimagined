@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Calendar } from "lucide-react";
+import { Calendar, Check } from "lucide-react";
 import { useSyncExternalStore } from "react";
 
 import { useDemo } from "@/components/demo-provider";
@@ -36,6 +36,37 @@ function balanceState(status: BalanceStatus): string {
     return "Credit";
   }
   return "Paid up";
+}
+
+function ReminderToggle({
+  checked,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  label: string;
+  onChange: (enabled: boolean) => void;
+}) {
+  return (
+    <label className="flex min-h-11 w-fit cursor-pointer items-center gap-3">
+      <span className="relative grid size-11 shrink-0 place-items-center">
+        <input
+          aria-describedby="reminder-demo-note"
+          checked={checked}
+          className="peer absolute inset-0 m-0 size-full cursor-pointer appearance-none border-0 bg-transparent"
+          onChange={(event) => onChange(event.target.checked)}
+          type="checkbox"
+        />
+        <span
+          aria-hidden="true"
+          className="pointer-events-none grid size-5 place-items-center rounded-md border-2 border-line-strong bg-white text-transparent peer-checked:border-brand peer-checked:bg-brand peer-checked:text-white"
+        >
+          <Check className="size-3.5" strokeWidth={3} />
+        </span>
+      </span>
+      {label}
+    </label>
+  );
 }
 
 function pillTone(badge: ReturnType<typeof periodBadge>): "ok" | "warn" | "neutral" {
@@ -180,26 +211,16 @@ export function HomeBoard() {
               Demo only. Nothing is emailed or texted.
             </p>
             <div className="mt-3 flex flex-col gap-2">
-              <label className="flex min-h-11 items-center gap-3">
-                <input
-                  aria-describedby="reminder-demo-note"
-                  checked={household.reminderOptIn.email}
-                  className="size-11 shrink-0 accent-brand"
-                  onChange={(event) => demo.setReminderChannel("email", event.target.checked)}
-                  type="checkbox"
-                />
-                Email before the cutoff
-              </label>
-              <label className="flex min-h-11 items-center gap-3">
-                <input
-                  aria-describedby="reminder-demo-note"
-                  checked={household.reminderOptIn.sms}
-                  className="size-11 shrink-0 accent-brand"
-                  onChange={(event) => demo.setReminderChannel("sms", event.target.checked)}
-                  type="checkbox"
-                />
-                Text before the cutoff
-              </label>
+              <ReminderToggle
+                checked={household.reminderOptIn.email}
+                label="Email before the cutoff"
+                onChange={(enabled) => demo.setReminderChannel("email", enabled)}
+              />
+              <ReminderToggle
+                checked={household.reminderOptIn.sms}
+                label="Text before the cutoff"
+                onChange={(enabled) => demo.setReminderChannel("sms", enabled)}
+              />
             </div>
             {household.preferences.dietaryNotes ? (
               <p className="mt-4 text-sm leading-relaxed">
@@ -220,7 +241,6 @@ export function HomeBoard() {
               <p className="mt-3 font-semibold">
                 {balanceState(balance.status)}
                 {balance.status === "credit" ? ` ${formatDifference(balance.differenceCents)}` : null}
-                {balance.status === "short" ? ` ${formatPrice(owing)}` : null}
               </p>
             ) : null}
             <Link className="mt-4 inline-flex font-semibold text-brand-ink" href="/payments">

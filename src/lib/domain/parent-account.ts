@@ -122,7 +122,9 @@ export interface LedgerEntry {
 
 /** Orders and payments for one household, oldest first, with a running balance. */
 export function householdLedger(snapshot: LunchSnapshot, householdId: string): LedgerEntry[] {
-  const students = snapshot.students.filter((pupil) => pupil.householdId === householdId);
+  const students = snapshot.students.filter(
+    (pupil) => pupil.householdId === householdId && !pupil.archived,
+  );
   const byId = new Map(students.map((pupil) => [pupil.id, pupil]));
   const pending: Omit<LedgerEntry, "balanceCents">[] = [];
 

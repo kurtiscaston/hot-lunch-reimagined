@@ -48,6 +48,20 @@ describe("parent account", () => {
     }
   });
 
+  it("leaves an archived student's orders out of the ledger", () => {
+    const copy = createSeed(DEMO_NOW);
+    const ada = copy.students.find((pupil) => pupil.id === "stu-ada-brindle");
+    if (!ada) {
+      throw new Error("seed is missing Ada");
+    }
+    copy.students = copy.students.map((pupil) =>
+      pupil.id === ada.id ? { ...pupil, archived: true } : pupil,
+    );
+    const ledger = householdLedger(copy, "hh-brindle");
+    expect(ledger.some((entry) => entry.what.includes("Ada Brindle"))).toBe(false);
+    expect(ledger.some((entry) => entry.what.includes("Theo Brindle"))).toBe(true);
+  });
+
   it("marks a placed unpaid day as reserved and a gap as not ordered", () => {
     expect(periodBadge({ missing: true, locked: false, status: "paid" })).toBe("Not ordered");
     expect(periodBadge({ missing: false, locked: false, status: "short" })).toBe("Reserved");
