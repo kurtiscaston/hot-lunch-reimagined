@@ -10,6 +10,13 @@ async function expectTouchTarget(locator: Locator) {
 }
 
 test("a school year rolls forward after a preview", async ({ page }) => {
+  const expectGrade = async (name: string, grade: string) => {
+    const card = page
+      .getByRole("article")
+      .filter({ has: page.getByRole("heading", { name, exact: true }) });
+    await expect(card.getByText(grade, { exact: true })).toBeVisible();
+  };
+
   await page.clock.setFixedTime(FROZEN_AT);
   await page.goto("/admin");
   await expect(page.getByText("Brindle · Email", { exact: true })).toBeVisible();
@@ -34,14 +41,14 @@ test("a school year rolls forward after a preview", async ({ page }) => {
 
   await page.goto("/");
   await page.getByLabel("Household", { exact: true }).selectOption({ label: "Brindle" });
-  await expect(page.getByText("Ada Brindle, Grade 1")).toBeVisible();
-  await expect(page.getByText("Theo Brindle, Grade 4")).toBeVisible();
+  await expectGrade("Ada Brindle", "Grade 1");
+  await expectGrade("Theo Brindle", "Grade 4");
   await expect(
     page.getByText("Preferences carried with this household: Ada eats vegetarian."),
   ).toBeVisible();
 
   await page.getByLabel("Household", { exact: true }).selectOption({ label: "Hearthwell" });
-  await expect(page.getByText("Juniper Hearthwell, Grade 3")).toBeVisible();
+  await expectGrade("Juniper Hearthwell", "Grade 3");
   await expect(page.getByText("Moss Hearthwell")).toHaveCount(0);
   await expect(page.getByText("No peanuts in the house.")).toBeVisible();
 });

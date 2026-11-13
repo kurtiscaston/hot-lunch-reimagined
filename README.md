@@ -16,7 +16,7 @@ For the volunteer, the week ends in counting. Orders have to be totalled by vend
 
 ## What changed
 
-The demo is a mobile-first ordering screen and a volunteer workspace for that fictional school.
+The demo is a parent view (Home, Orders, and Payments) and a volunteer workspace for that fictional school.
 
 - Each menu day shows a countdown and locks at the cutoff, in America/Vancouver.
 - Households can opt into a mock email or text reminder. The app records it in a mock outbox. Nothing is sent.
