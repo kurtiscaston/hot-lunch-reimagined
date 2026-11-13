@@ -2,6 +2,10 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* ".." is src/. The inline list is classes joined in ui-classes.ts and the tone maps. */
+@source "..";
+@source inline("font-sans bg-brand bg-dark bg-fill bg-ok-bg bg-brand-tint border-line-strong border-white/30 text-ink text-ink-2 text-ink-3 text-ok text-brand-ink disabled:bg-fill disabled:text-ink-3 disabled:bg-white/40 disabled:text-white/50");
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
