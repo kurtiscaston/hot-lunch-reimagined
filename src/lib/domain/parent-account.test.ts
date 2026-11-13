@@ -60,6 +60,12 @@ describe("parent account", () => {
     const ledger = householdLedger(copy, "hh-brindle");
     expect(ledger.some((entry) => entry.what.includes("Ada Brindle"))).toBe(false);
     expect(ledger.some((entry) => entry.what.includes("Theo Brindle"))).toBe(true);
+    const balance = balanceFor(copy, "hh-brindle");
+    const last = ledger.at(-1);
+    if (!balance || !last) {
+      throw new Error("Brindle ledger or balance is missing");
+    }
+    expect(last.balanceCents).toBe(-balance.differenceCents);
   });
 
   it("marks a placed unpaid day as reserved and a gap as not ordered", () => {
