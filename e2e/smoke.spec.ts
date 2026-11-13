@@ -1,4 +1,4 @@
-import { expect, type Locator, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
 const disclaimer = "Unofficial concept, not affiliated with any school or PAC";
 
@@ -215,25 +215,30 @@ test("selected controls keep a visible focus ring", async ({ page }) => {
   await page.goto("/orders?student=stu-ada-brindle");
   const ada = page.getByRole("navigation", { name: "Student" }).getByRole("link", { name: "Ada" });
   await expect(ada).toBeVisible();
-  await focusVisible(ada);
+  await tabTo(page, ada);
   await expectVisibleRing(ada);
 
   await page.goto("/admin#outbox");
   const channel = page.getByRole("group", { name: "Channel" }).getByRole("button", { name: /^All / });
   await expect(channel).toBeVisible();
-  await focusVisible(channel);
+  await tabTo(page, channel);
   await expectVisibleRing(channel);
 });
 
-async function focusVisible(locator: Locator) {
-  await locator.evaluate((element) => {
-    if (!(element instanceof HTMLElement)) {
-      throw new Error("Expected an element");
+async function tabTo(page: Page, locator: Locator) {
+  await page.evaluate(() => {
+    const active = document.activeElement;
+    if (active instanceof HTMLElement) {
+      active.blur();
     }
-    const options: FocusOptions = { preventScroll: true };
-    Object.assign(options, { focusVisible: true });
-    element.focus(options);
   });
+  for (let step = 0; step < 80; step += 1) {
+    if (await locator.evaluate((element) => document.activeElement === element)) {
+      return;
+    }
+    await page.keyboard.press("Tab");
+  }
+  throw new Error("Tab did not reach the control");
 }
 
 async function expectVisibleRing(locator: Locator) {

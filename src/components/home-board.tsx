@@ -10,7 +10,6 @@ import { DateTile, StatusPill } from "@/components/status-pill";
 import { btnDark, btnPhone, btnPrimary, btnSecondary } from "@/components/ui-classes";
 import { readClock, subscribeClock } from "@/lib/clock";
 import { isOrderingLocked } from "@/lib/domain/cutoff";
-import { formatDifference } from "@/lib/domain/dashboard";
 import {
   activeMenuDays,
   balanceFor,
@@ -59,7 +58,7 @@ function ReminderToggle({
         />
         <span
           aria-hidden="true"
-          className="pointer-events-none grid size-5 place-items-center rounded-md border-2 border-line-strong bg-white text-transparent peer-checked:border-brand peer-checked:bg-brand peer-checked:text-white"
+          className="pointer-events-none grid size-5 place-items-center rounded-md border-2 border-line-strong bg-white text-transparent peer-checked:border-brand peer-checked:bg-brand peer-checked:text-white forced-colors:border-[CanvasText] peer-checked:forced-colors:border-[Highlight] peer-checked:forced-colors:bg-[Highlight] peer-checked:forced-colors:text-[HighlightText]"
         >
           <Check className="size-3.5" strokeWidth={3} />
         </span>
@@ -238,10 +237,7 @@ export function HomeBoard() {
             </p>
             <p className="mt-1 text-ink-2">owing</p>
             {balance ? (
-              <p className="mt-3 font-semibold">
-                {balanceState(balance.status)}
-                {balance.status === "credit" ? ` ${formatDifference(balance.differenceCents)}` : null}
-              </p>
+              <p className="mt-3 font-semibold">{balanceState(balance.status)}</p>
             ) : null}
             <Link className="mt-4 inline-flex font-semibold text-brand-ink" href="/payments">
               View payments
