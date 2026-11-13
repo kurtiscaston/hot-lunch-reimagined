@@ -43,7 +43,7 @@ test("a household can order before the cutoff and not after it", async ({ page }
 
   // Frozen so a cutoff or Vancouver midnight cannot move mid-run.
   await page.clock.setFixedTime(FROZEN_AT);
-  await page.goto("/");
+  await page.goto("/orders");
   await expect(
     page.getByText("Times shown in Pacific Time (America/Vancouver).", { exact: true }),
   ).toBeVisible();

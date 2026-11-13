@@ -1,14 +1,14 @@
 "use client";
 
 import { useDemo } from "@/components/demo-provider";
-import { Button } from "@/components/ui/button";
+import { btnSecondary } from "@/components/ui-classes";
 
 export function ResetDemoButton() {
   const demo = useDemo();
 
   return (
-    <Button
-      className="min-h-11"
+    <button
+      className={`${btnSecondary} min-h-11`}
       disabled={!demo}
       onClick={() => {
         if (!demo) {
@@ -22,11 +22,9 @@ export function ResetDemoButton() {
         }
         demo.reset();
       }}
-      size="lg"
       type="button"
-      variant="outline"
     >
       Reset demo data
-    </Button>
+    </button>
   );
 }

@@ -112,11 +112,10 @@ async function expectTouchTarget(locator: Locator) {
 
 test("home loads and shows the disclaimer", async ({ page }) => {
   await page.goto("/");
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Order lunch before the cutoff." }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Welcome back" })).toBeVisible();
   await expect(page.getByText(disclaimer)).toBeVisible();
   await expect(page.getByText("Demo only — not a sign-in")).toBeVisible();
+  await expect(page.getByText("Unofficial concept · Maple Hollow Elementary")).toBeVisible();
 });
 
 test("volunteer page loads and shows the disclaimer", async ({ page }) => {
@@ -210,4 +209,13 @@ test("disclaimer stays visible on a phone", async ({ page }) => {
   const volunteer = page.getByRole("link", { name: "Volunteer" });
   await expect(volunteer).toBeVisible();
   await expectTouchTarget(volunteer);
+});
+
+test("unofficial concept labelling is visible on a phone", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const label = "Unofficial concept · Maple Hollow Elementary";
+  await page.goto("/");
+  await expect(page.getByText(label)).toBeVisible();
+  await page.goto("/admin");
+  await expect(page.getByText(label)).toBeVisible();
 });
